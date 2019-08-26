@@ -1,5 +1,10 @@
 #!/usr/bin/php
 <?php
+/**
+ * @copyright (c) 2019, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license GPLv3
+ */
 /*
  * We need to prevent that ComponentsNeeded tries to load classes which were
  * already declared by PHP. However, we also need to prevent that
