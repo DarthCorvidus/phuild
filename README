@@ -1,2 +1,13 @@
 phuild is a tool to help distribute PHP scripts along with necessary components.
 
+phuild determines which classes a script needs and will either generate a
+list of require_once-statements (for your convenience during development) or
+just create a new version of the script which contains all necessary classes, so
+that the user has to bother only about one script instead of a whole library
+of classes.
+
+Usage:
+
+./phuild.php <script> > <complete script file>
+
+Please note that phuild doesn't support namespaces.
