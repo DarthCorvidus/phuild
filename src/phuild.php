@@ -19,9 +19,11 @@ $ignore = array_merge(get_declared_classes(), get_declared_interfaces());
  */
 $ignore[] = "self";
 $ignore[] = "parent";
+#Include
 require_once __DIR__.'/include/local/ComponentsAvailable.php';
 require_once __DIR__.'/include/local/ComponentsNeeded.php';
 require_once __DIR__.'/include/local/Main.php';
+#/Include
 
 try {
 	$main = new Main($argv, $ignore);
