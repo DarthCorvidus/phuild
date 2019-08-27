@@ -9,6 +9,8 @@ class ComponentsNeeded {
 	private $classes = array();
 	private $components;
 	private $ignore = array();
+	const REQONCE = 1;
+	const SOURCE = 2;
 	function __construct($file, ComponentsAvailable $ca, array $ignore) {
 		$this->main = realpath($file);
 		$this->components = $ca;
@@ -64,11 +66,62 @@ class ComponentsNeeded {
 		return $this->classes;
 	}
 	
-	function getRequireOnce(): string {
+	private function getRequireOnce(): string {
 		$require = "";
 		foreach($this->classes as $key => $value) {
 			$require .= "require_once ".str_replace(dirname($this->main), "__DIR__.'", $this->components->getComponent($value))."';".PHP_EOL;
 		}
 	return $require;
+	}
+	
+	private function getSource(): string {
+		$replace = "";
+		foreach($this->classes as $key => $value) {
+			$file = trim(file_get_contents($this->components->getComponent($value)));
+			$exp = explode(PHP_EOL, $file);
+			$exp[0] = "#Imported from ".str_replace(dirname($this->main), ".", $this->components->getComponent($value)).PHP_EOL;
+			if($exp[count($exp)-1]=="?>") {
+				array_pop($exp);
+			}
+			$replace .= implode(PHP_EOL, $exp).PHP_EOL;
+		}
+	return $replace;
+	}
+	
+	private function getReplace($type): string {
+		$new = "";
+		if($type==self::REQONCE) {
+			$new .= $this->getRequireOnce();
+		}
+		if($type==self::SOURCE) {
+			$new .= $this->getSource();
+		}
+	return $new;
+	}
+	
+	function replace(int $type):string {
+		$replace = false;
+		$new = "";
+		$handle = fopen($this->main, "r");
+		while($line = fgets($handle)) {
+			$trimmed = trim($line);
+			if($trimmed=="#Include") {
+				$new .= $line;
+				$replace = true;
+				continue;
+			}
+			if($trimmed=="#/Include") {
+				$new .= $this->getReplace($type);
+				$new .= $line;
+				$replace = FALSE;
+				continue;
+			}
+			if($replace==true) {
+				continue;
+			}
+			$new .= $line;
+		}
+		fclose($handle);
+	return $new;
 	}
 }

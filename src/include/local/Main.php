@@ -21,6 +21,6 @@ class Main {
 	}
 	
 	function run() {
-		echo $this->needed->getRequireOnce();
+		echo $this->needed->replace(ComponentsNeeded::SOURCE);
 	}
 }
