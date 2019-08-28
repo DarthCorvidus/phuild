@@ -17,7 +17,7 @@ class ArgvMain implements ArgvModel{
 	}
 
 	public function getBoolean(): array {
-		return array("source", "require");
+		return array("source", "require", "check");
 	}
 
 	public function getParamCount(): int {

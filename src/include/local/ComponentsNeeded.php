@@ -19,19 +19,25 @@ class ComponentsNeeded {
 	}
 
 	private function addClass(string $file, string $className) {
-		if(!in_array($className, $this->ignore)) {
-			/**
-			 * Fill ignore first, to prevent that classes get added for several
-			 * times.
-			 */
-			$this->ignore[] = $className;
-			$this->parse($this->components->getComponent($className));
-			/**
-			 * Fill classes after parse, to ensure proper dependency, ie what's
-			 * needed is added before what needs it.
-			 */
-			$this->classes[] = $className;
+		if(in_array($className, $this->ignore)) {
+			return;
 		}
+		if(!$this->components->hasComponent($className)) {
+			$this->classes[] = $className;
+			return;
+		}
+
+		/**
+		 * Fill ignore first, to prevent that classes get added for several
+		 * times.
+		 */
+		$this->ignore[] = $className;
+		$this->parse($this->components->getComponent($className));
+		/**
+		 * Fill classes after parse, to ensure proper dependency, ie what's
+		 * needed is added before what needs it.
+		 */
+		$this->classes[] = $className;
 	}
 	
 	private function parse($file) {
@@ -123,5 +129,28 @@ class ComponentsNeeded {
 		}
 		fclose($handle);
 	return $new;
+	}
+	
+	private function printCheckResult(array $array, string $heading) {
+		foreach($array as $key => $value) {
+			if($key==0) {
+				echo $heading.PHP_EOL;
+			}
+			echo "\t".$value.PHP_EOL;
+		}
+	}
+	
+	function check() {
+		$available = array();
+		$missing = array();
+		foreach($this->classes as $value) {
+			if($this->components->hasComponent($value)) {
+				$available[] = $value;
+			} else {
+				$missing[] = $value;
+			}
+		}
+		$this->printCheckResult($available, "Available Components:");
+		$this->printCheckResult($missing, "Missing Components:");
 	}
 }
