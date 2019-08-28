@@ -5,9 +5,55 @@ list of require_once-statements (for your convenience during development) or
 just create a new version of the script which contains all necessary classes, so
 that the user has to bother only about one script instead of a whole library
 of classes.
+Please note that phuild doesn't support namespaces. For the sake of this
+document, classes and interfaces will be referred to as „classes“ if a
+distinction is not necessary.
 
 Usage:
 
 ./phuild.php <script> > <complete script file>
 
-Please note that phuild doesn't support namespaces.
+You need to add a code block within your script:
+
+#Include
+#/Include
+
+The lines in between #Include and #/Include will be replaced by phuild's output.
+
+Parameters:
+
+	--check    checks for nonexisting classes.
+	--require  inserts a list of proper require_once statements.
+	--source   inserts source code of required classes.
+
+How it works:
+
+phuild will search all PHP files within and below the directory the script it
+was called upon resides. It parses every PHP file for class declarations.
+It will then parse the script it was called upon and will recursively determine
+what inclusions are needed for this particular script.
+
+Please note that phuild does the equivalent of a „Compile Time“ check, as it
+deems every class which is used somewhere as „needed“, even if it's absence
+would not cause an error on Runtime, which may happen if a class is used within
+a part of the code that is never executed on Runtime.
+
+Check:
+
+When called with --check, phuild prints out which classes are available and
+which ones are missing.
+
+Require:
+
+Prints out the script phuild was called upon, replacing the lines between the
+#Include block by a list of require statements relative to the script's
+directory using __DIR__ to generate an absolute path.
+
+Source:
+
+Prints out the script phuild was called upon, replacing the lines between the
+#Include block by inserting the source code as such, which allows you to
+distribute your script without having to care for libraries.
+
+Please note that --source assumes that every sourced file begins with <?php and
+ends with either ?>, whitespace or the last line of code.
