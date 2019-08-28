@@ -54,17 +54,13 @@ class ComponentsAvailable {
 	}
 	
 	public function getComponent(string $component) {
-		if(!isset($this->classes[$component])) {
+		if(!$this->hasComponent($component)) {
 			throw new Exception("component ".$component." not known.");
 		}
 		return $this->classes[$component];
 	}
 	
-	public function getRequireOnce(string $component) {
-		if(!isset($this->classes[$component])) {
-			throw new Exception("component ".$component." not known.");
-		}
-		$path = $this->getComponent($component);
-		return "require_once __DIR__.\"".str_replace($this->folder, "", $path)."\";";
+	public function hasComponent(string $component):bool {
+		return isset($this->classes[$component]);
 	}
 }
