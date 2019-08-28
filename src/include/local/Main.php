@@ -21,18 +21,18 @@ class Main {
 		}
 		$model = new ArgvMain();
 		$this->argv = new Argv($argv, $model);
-		$boolean = array("source", "require");
+		$boolean = array("source", "require", "check");
 		$boolCount = 0;
 		foreach($boolean as $value) {
 			if($this->argv->getBoolean($value)) {
 				$boolCount++;
 			}
 			if($boolCount>1) {
-				throw new Exception("--source and --require are mutually exclusive.");
+				throw new Exception("--source, --check and --require are mutually exclusive.");
 			}
 		}
 		if($boolCount==0) {
-			throw new Exception("Needs --source or --require");
+			throw new Exception("Needs --source, --check or --require");
 		}
 		$this->file = $argv[1];
 		$this->sourcePath = dirname($this->file);
@@ -46,6 +46,9 @@ class Main {
 		}
 		if($this->argv->getBoolean("require")) {
 			echo $this->needed->replace(ComponentsNeeded::REQONCE);
+		}
+		if($this->argv->getBoolean("check")) {
+			$this->needed->check();
 		}
 	}
 }
