@@ -40,8 +40,40 @@ class ComponentsNeeded {
 		$this->classes[] = $className;
 	}
 	
+	private function getMainFile(): string {
+		$result = "";
+		$bb = false;
+		$file = file($this->main);
+		foreach($file as $line) {
+			$trimmed = trim($line);
+			if($trimmed=="#Include") {
+				$result .= $line;
+				$bb = true;
+				continue;
+			}
+			if($trimmed=="#/Include") {
+				$result .= $line;
+				$bb = false;
+				continue;
+			}
+			if($bb == true) {
+				continue;
+			}
+		$result .= $line;
+		}
+	return $result;
+	}
+	
 	private function parse($file) {
-		$string = file_get_contents($file);
+		if($file==$this->main) {
+			/**
+			 * Any #Build block has to be ignored for the main file, as code
+			 * therein will be replaced and must not trigger dependencies.
+			 */
+			$string = $this->getMainFile();
+		} else {
+			$string = file_get_contents($file);
+		}
 		$tokens = token_get_all($string);
 
 		$interesting = array(T_IMPLEMENTS, T_EXTENDS, T_NEW);
