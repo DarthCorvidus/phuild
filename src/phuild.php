@@ -52,6 +52,8 @@ $ignore[] = "parent";
 
 #Include
 require_once __DIR__.'/include/lib/Argv/ArgvModel.php';
+require_once __DIR__.'/include/lib/Argv/ArgModel.php';
+require_once __DIR__.'/include/lib/Argv/ArgString.php';
 require_once __DIR__.'/include/local/ArgvMain.php';
 require_once __DIR__.'/include/lib/Argv/Argv.php';
 require_once __DIR__.'/include/local/ComponentsAvailable.php';

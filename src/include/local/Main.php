@@ -40,13 +40,28 @@ class Main {
 		$this->needed = new ComponentsNeeded($this->file, $this->available, $ignore);
 	}
 	
-	function run() {
+	private function saveFile() {
+		if($this->argv->getBoolean("check")) {
+			return;
+		}
 		if($this->argv->getBoolean("source")) {
-			echo $this->needed->replace(ComponentsNeeded::SOURCE);
+			$replaced = $this->needed->replace(ComponentsNeeded::SOURCE);
 		}
 		if($this->argv->getBoolean("require")) {
-			echo $this->needed->replace(ComponentsNeeded::REQONCE);
+			$replaced = $this->needed->replace(ComponentsNeeded::REQONCE);
 		}
+		if(!$this->argv->hasValue("output")) {
+			echo $replaced.PHP_EOL;
+			return;
+		}
+		if(file_exists($this->argv->getValue("output")) && !$this->argv->getBoolean("force")) {
+			throw new Exception("file ".$this->argv->getValue("output")." already exists, use --force to replace.");
+		}
+		file_put_contents($this->argv->getValue("output"), $replaced);
+	}
+	
+	function run() {
+		$this->saveFile();
 		if($this->argv->getBoolean("check")) {
 			$this->needed->check();
 		}

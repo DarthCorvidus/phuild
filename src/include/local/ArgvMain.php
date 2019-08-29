@@ -12,16 +12,21 @@
  * @author hm
  */
 class ArgvMain implements ArgvModel{
+	private $arg = array();
+	public function __construct() {
+		$file = new ArgString("output");
+		$this->arg[] = $file;
+	}
 	public function getArgModel(int $arg): \ArgModel {
-		
+		return $this->arg[$arg];
 	}
 
 	public function getBoolean(): array {
-		return array("source", "require", "check");
+		return array("source", "require", "check", "force");
 	}
 
 	public function getParamCount(): int {
-		return 0;
+		return count($this->arg);
 	}
 
 }
