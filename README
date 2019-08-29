@@ -25,6 +25,8 @@ Parameters:
 	--check    checks for nonexisting classes.
 	--require  inserts a list of proper require_once statements.
 	--source   inserts source code of required classes.
+	--output   saves file generated with either --require or --source.
+	--force    overwrites existing file.
 
 How it works:
 
