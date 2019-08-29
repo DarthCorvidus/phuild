@@ -78,6 +78,125 @@ interface ArgvModel {
 	 */
 	function getBoolean(): array;
 }
+#Imported from ./include/lib/Argv/ArgModel.php
+
+/**
+ * @copyright (c) 2019, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * Interface for return value of Argv::getArgModel.
+ *
+ * ArgvModel allows to define parameters along with conversion and validation.
+ * Examples may be to validate that a parameter like --date= contains a valid
+ * date.
+ */
+interface ArgModel {
+	/**
+	 * „Long“ name of a parameter, expecting two hyphens (ie. --date).
+	 */
+	function getLongName():string;
+	/**
+	 * returns a default value if it has one. If, for instance, --date is used,
+	 * it could be set to „now“.
+	 */
+	function getDefault(): string;
+	/**
+	 * Should return whether an instance of ArgModel has a default value or not.
+	 */
+	function hasDefault():bool;
+	/**
+	 * Should return whether an instance of ArgModel has an instance of Validate
+	 * defined.
+	 */
+	function hasValidate():bool;
+	/**
+	 * Should return an instance of Validate if there is one; Argv will then
+	 * call it on the value given by a parameter. getValidate won't be called if
+	 * hasValidate returns false.
+	 */
+	function getValidate():Validate;
+	/**
+	 * Should return whether an instance of ArgModel has an instance of Convert
+	 * defined.
+	 */
+	function hasConvert():bool;
+	/**
+	 * Should return an instance of Convert if there is one; Argv will then use
+	 * it to convert any input.
+	 */
+	function getConvert():Convert;
+	function isMandatory():bool;
+}
+#Imported from ./include/lib/Argv/ArgString.php
+
+/**
+ * @copyright (c) 2019, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+class ArgString implements ArgModel {
+	private $name;
+	private $default;
+	private $mandatory = false;
+	private $validate;
+	private $convert;
+	public function __construct(string $name, string $default = "") {
+		$this->name = $name;
+		$this->default = $default;
+	}
+
+	public function setMandatory(bool $mandatory) {
+		$this->mandatory = $mandatory;
+	}
+	
+	public function setValidate(Validate $validate) {
+		$this->validate = $validate;
+	}
+	
+	public function setConvert(Convert $convert) {
+		$this->convert = $convert;
+	}
+	
+	public function getConvert(): Convert {
+		return $this->convert;
+	}
+
+	public function getDefault(): string {
+		return $this->default;
+	}
+
+	public function getLongName(): string {
+		return $this->name;
+	}
+
+	public function getShortName(): string {
+		
+	}
+
+	public function getValidate(): Validate {
+		return $this->validate;
+	}
+
+	public function hasConvert(): bool {
+		return $this->convert!=NULL;
+	}
+
+	public function hasDefault(): bool {
+		return $this->default!=="";
+	}
+
+	public function hasValidate(): bool {
+		return $this->validate!=NULL;
+	}
+
+	public function isMandatory(): bool {
+		return $this->mandatory;
+	}
+
+}
 #Imported from ./include/local/ArgvMain.php
 
 
@@ -93,16 +212,21 @@ interface ArgvModel {
  * @author hm
  */
 class ArgvMain implements ArgvModel{
+	private $arg = array();
+	public function __construct() {
+		$file = new ArgString("output");
+		$this->arg[] = $file;
+	}
 	public function getArgModel(int $arg): \ArgModel {
-		
+		return $this->arg[$arg];
 	}
 
 	public function getBoolean(): array {
-		return array("source", "require", "check");
+		return array("source", "require", "check", "force");
 	}
 
 	public function getParamCount(): int {
-		return 0;
+		return count($this->arg);
 	}
 
 }
@@ -276,7 +400,7 @@ class ComponentsAvailable {
 			$this->parse($value);
 		}
 	}
-	
+
 	private function parse($file) {
 		$string = file_get_contents($file);
 		$tokens = token_get_all($string);
@@ -353,8 +477,40 @@ class ComponentsNeeded {
 		$this->classes[] = $className;
 	}
 	
+	private function getMainFile(): string {
+		$result = "";
+		$bb = false;
+		$file = file($this->main);
+		foreach($file as $line) {
+			$trimmed = trim($line);
+			if($trimmed=="#Include") {
+				$result .= $line;
+				$bb = true;
+				continue;
+			}
+			if($trimmed=="#/Include") {
+				$result .= $line;
+				$bb = false;
+				continue;
+			}
+			if($bb == true) {
+				continue;
+			}
+		$result .= $line;
+		}
+	return $result;
+	}
+	
 	private function parse($file) {
-		$string = file_get_contents($file);
+		if($file==$this->main) {
+			/**
+			 * Any #Build block has to be ignored for the main file, as code
+			 * therein will be replaced and must not trigger dependencies.
+			 */
+			$string = $this->getMainFile();
+		} else {
+			$string = file_get_contents($file);
+		}
 		$tokens = token_get_all($string);
 
 		$interesting = array(T_IMPLEMENTS, T_EXTENDS, T_NEW);
@@ -510,13 +666,28 @@ class Main {
 		$this->needed = new ComponentsNeeded($this->file, $this->available, $ignore);
 	}
 	
-	function run() {
+	private function saveFile() {
+		if($this->argv->getBoolean("check")) {
+			return;
+		}
 		if($this->argv->getBoolean("source")) {
-			echo $this->needed->replace(ComponentsNeeded::SOURCE);
+			$replaced = $this->needed->replace(ComponentsNeeded::SOURCE);
 		}
 		if($this->argv->getBoolean("require")) {
-			echo $this->needed->replace(ComponentsNeeded::REQONCE);
+			$replaced = $this->needed->replace(ComponentsNeeded::REQONCE);
 		}
+		if(!$this->argv->hasValue("output")) {
+			echo $replaced.PHP_EOL;
+			return;
+		}
+		if(file_exists($this->argv->getValue("output")) && !$this->argv->getBoolean("force")) {
+			throw new Exception("file ".$this->argv->getValue("output")." already exists, use --force to replace.");
+		}
+		file_put_contents($this->argv->getValue("output"), $replaced);
+	}
+	
+	function run() {
+		$this->saveFile();
 		if($this->argv->getBoolean("check")) {
 			$this->needed->check();
 		}
