@@ -12,14 +12,12 @@ class Main {
 	private $available;
 	private $argv;
 	function __construct(array $argv, array $ignore) {
+		$model = new ArgvMain();
 		if(!isset($argv[1])) {
-			throw new Exception("Usage: phuild.php <filename> [parameters]");
+			$reference = new ArgvReference($model);
+			$reference->getReference();
 			die();
 		}
-		if(!file_exists($argv[1])) {
-			throw new Exception("file does not exist.");
-		}
-		$model = new ArgvMain();
 		$this->argv = new Argv($argv, $model);
 		$boolean = array("source", "require", "check");
 		$boolCount = 0;
@@ -28,11 +26,11 @@ class Main {
 				$boolCount++;
 			}
 			if($boolCount>1) {
-				throw new Exception("--source, --check and --require are mutually exclusive.");
+				throw new ArgvException("--source, --check and --require are mutually exclusive.");
 			}
 		}
 		if($boolCount==0) {
-			throw new Exception("Needs --source, --check or --require");
+			throw new ArgvException("Needs --source, --check or --require.");
 		}
 		$this->file = $argv[1];
 		$this->sourcePath = dirname($this->file);

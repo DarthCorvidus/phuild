@@ -55,6 +55,9 @@ require_once __DIR__.'/include/lib/Argv/ArgvModel.php';
 require_once __DIR__.'/include/lib/Argv/ArgModel.php';
 require_once __DIR__.'/include/lib/Argv/ArgString.php';
 require_once __DIR__.'/include/local/ArgvMain.php';
+require_once __DIR__.'/include/lib/LongestString.php';
+require_once __DIR__.'/include/lib/Argv/ArgvReference.php';
+require_once __DIR__.'/include/lib/Argv/ArgvException.php';
 require_once __DIR__.'/include/lib/Argv/Argv.php';
 require_once __DIR__.'/include/local/ComponentsAvailable.php';
 require_once __DIR__.'/include/local/ComponentsNeeded.php';
@@ -64,6 +67,6 @@ require_once __DIR__.'/include/local/Main.php';
 try {
 	$main = new Main($argv, $ignore);
 	$main->run();
-} catch (Exception $ex) {
+} catch (ArgvException $ex) {
 	echo $ex->getMessage().PHP_EOL;
 }
