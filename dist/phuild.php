@@ -63,15 +63,16 @@ $ignore[] = "parent";
  * Interface for model as expected by Argv.
  */
 interface ArgvModel {
-	/**
-	 * The amount of defined parameters; valued parameters only.
-	 */
-	function getParamCount():int;
-	/**
-	 * Get a specific arg model.
-	 * @param int $arg
-	 */
-	function getArgModel(int $arg): ArgModel;
+	public function getArgNames(): array;
+	
+	public function getNamedArg(string $name): ArgModel;
+
+	public function getPositionalCount(): int;
+	
+	public function getPositionalArg(int $i): ArgModel;
+	
+	public function getPositionalName(int $i): string;
+	
 	/**
 	 * return an array of pure boolean parameters without a value, which will
 	 * evaluate to true if set.
@@ -94,10 +95,6 @@ interface ArgvModel {
  * date.
  */
 interface ArgModel {
-	/**
-	 * „Long“ name of a parameter, expecting two hyphens (ie. --date).
-	 */
-	function getLongName():string;
 	/**
 	 * returns a default value if it has one. If, for instance, --date is used,
 	 * it could be set to „now“.
@@ -138,58 +135,51 @@ interface ArgModel {
  * @license LGPL
  */
 class ArgString implements ArgModel {
-	private $name;
 	private $default;
 	private $mandatory = false;
 	private $validate;
 	private $convert;
-	public function __construct(string $name, string $default = "") {
-		$this->name = $name;
-		$this->default = $default;
+	public function __construct() {
 	}
 
 	public function setMandatory(bool $mandatory) {
 		$this->mandatory = $mandatory;
 	}
 	
-	public function setValidate(Validate $validate) {
-		$this->validate = $validate;
-	}
-	
 	public function setConvert(Convert $convert) {
 		$this->convert = $convert;
+	}
+
+	public function hasConvert(): bool {
+		return $this->convert!==NULL;
 	}
 	
 	public function getConvert(): Convert {
 		return $this->convert;
 	}
 
+	public function setDefault(string $default) {
+		$this->default = $default;
+	}
+
+	public function hasDefault(): bool {
+		return $this->default!==NULL;
+	}
+	
 	public function getDefault(): string {
 		return $this->default;
 	}
 
-	public function getLongName(): string {
-		return $this->name;
-	}
-
-	public function getShortName(): string {
-		
-	}
-
-	public function getValidate(): Validate {
-		return $this->validate;
-	}
-
-	public function hasConvert(): bool {
-		return $this->convert!=NULL;
-	}
-
-	public function hasDefault(): bool {
-		return $this->default!=="";
+	public function setValidate(Validate $validate) {
+		$this->validate = $validate;
 	}
 
 	public function hasValidate(): bool {
 		return $this->validate!=NULL;
+	}
+
+	public function getValidate(): Validate {
+		return $this->validate;
 	}
 
 	public function isMandatory(): bool {
@@ -213,22 +203,178 @@ class ArgString implements ArgModel {
  */
 class ArgvMain implements ArgvModel{
 	private $arg = array();
+	private $positional = array();
+	private $positionalNames = array();
 	public function __construct() {
-		$file = new ArgString("output");
-		$this->arg[] = $file;
+		$this->arg["output"] = new ArgString();
+		$this->positional[] = new ArgString();
+		$this->positionalNames[] = "source";
 	}
-	public function getArgModel(int $arg): \ArgModel {
-		return $this->arg[$arg];
-	}
-
 	public function getBoolean(): array {
 		return array("source", "require", "check", "force");
 	}
 
-	public function getParamCount(): int {
-		return count($this->arg);
+	public function getArgNames(): array {
+		return array_keys($this->arg);
 	}
 
+	public function getNamedArg(string $name): \ArgModel {
+		return $this->arg[$name];
+	}
+
+	public function getPositionalArg(int $i): \ArgModel {
+		return $this->positional[$i];
+	}
+
+	public function getPositionalCount(): int {
+		return count($this->positional);
+	}
+
+	public function getPositionalName(int $i): string {
+		return $this->positionalNames[$i];
+	}
+
+}
+#Imported from ./include/lib/LongestString.php
+
+/**
+ * @copyright (c) 2019, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * Designed to get the length of the longest string of a set of strings.
+ */
+class LongestString {
+	private $longest = 0;
+	private $charset;
+	/**
+	 * 
+	 * @param string $charset Character Set as expected by mb_strlen.
+	 */
+	function __construct(string $charset = "UTF-8") {
+		$this->charset = $charset;
+	}
+	
+	/**
+	 * 
+	 * @param string $string
+	 */
+	function addString(string $string) {
+		$len = mb_strlen($string, $this->charset);
+		if($len>$this->longest) {
+			$this->longest = $len;
+		}
+	}
+	
+	/**
+	 * 
+	 * @param array $array
+	 */
+	function addArray(array $array) {
+		foreach($array as $key => $value) {
+			$this->addString($value);
+		}
+	}
+	
+	/**
+	 * 
+	 * @return int
+	 */
+	function getLongest(): int {
+		return $this->longest;
+	}
+	
+	/**
+	 * set stored length to zero
+	 */
+	function reset() {
+		$this->longest = 0;
+	}
+}
+#Imported from ./include/lib/Argv/ArgvReference.php
+
+/**
+ * @copyright (c) 2019, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * ArgvReference prints out a simple reference of defined arguments.
+ */
+
+class ArgvReference {
+	private $argvModel;
+	function __construct(ArgvModel $model) {
+		$this->argvModel = $model;
+	}
+	
+	function getReference() {
+		echo $this->getPositionalReference();
+		echo $this->getNamedReference();
+		echo $this->getBooleanReference();
+	}
+	
+	private function getPositionalReference(): string {
+		$count = $this->argvModel->getPositionalCount();
+		if($count==0) {
+			return "";
+		}
+		$return = "";
+		$return .= "Positional Arguments:".PHP_EOL;
+		for($i=0;$i<$count;$i++) {
+			$return .= "\tArgument ".($i+1).": ";
+			$return .= $this->argvModel->getPositionalName($i);
+			$return .= PHP_EOL;
+		}
+	return $return;
+	}
+	
+	private function getBooleanReference() {
+		if(empty($this->argvModel->getBoolean())) {
+			return "";
+		}
+		$return = "";
+		$return .= "Boolean Arguments:".PHP_EOL;
+		$longest = new LongestString();
+		$longest->addArray($this->argvModel->getBoolean());
+		foreach($this->argvModel->getBoolean() as $value) {
+			$return .= "\t--".$value.PHP_EOL;
+		}
+	return $return;
+	}
+	
+	private function getNamedReference(): string {
+		$names = $this->argvModel->getArgNames();
+		if(count($names)==0) {
+			return "";
+		}
+		$longest = new LongestString();
+		$longest->addArray($names);
+		$return = "";
+		$return .= "Named Arguments:".PHP_EOL;
+		foreach($names as $name) {
+			$arg = $this->argvModel->getNamedArg($name);
+			$return .= "\t--".str_pad($name, $longest->getLongest(), " ");
+			if($arg->isMandatory()) {
+				$return .= " (mandatory)".PHP_EOL;
+			} else {
+				$return .= " (optional)".PHP_EOL;
+			}
+		}
+	return $return;
+	}
+}
+#Imported from ./include/lib/Argv/ArgvException.php
+
+/**
+ * @copyright (c) 2019, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+class ArgvException extends RuntimeException {
 }
 #Imported from ./include/lib/Argv/Argv.php
 
@@ -248,84 +394,138 @@ class ArgvMain implements ArgvModel{
  */
 class Argv {
 	private $model;
-	private $long;
 	private $argv;
-	private $argvResult = array();
-	private $boolean = array();
-	private $longParams = array();
+	private $availablePositional = array();
+	private $availableNamed = array();
+	private $availableBoolean = array();
 	function __construct(array $argv, ArgvModel $model) {
 		$this->model = $model;
 		$this->argv = array_slice($argv, 1);
-		for($i = 0; $i<$this->model->getParamCount();$i++) {
-			$this->longParams[] = $this->model->getArgModel($i)->getLongName();
-		}
+		$this->getAvailable();
+		$this->sanityCheck();
+		$this->validate();
+	}
+	
+	private function getAvailable() {
 		foreach($this->argv as $key => $value) {
 			if(substr($value, 0, 2)=="--") {
-				$this->extractAll($value);
-			}
-		}
-		$this->extract();
-	}
-	
-	private function extractAll($value) {
-		$explode = explode("=", $value, 2);
-		$name = substr($explode[0], 2);
-		//checks whether a parameter is defined.
-		if(!in_array($name, $this->longParams) && !in_array($name, $this->model->getBoolean())) {
-			throw new InvalidArgumentException("Unknown parameter --".$name);
-		}
-		//checks if a boolean parameter is without a value.
-		if(count($explode)==2 && in_array($name, $this->model->getBoolean())) {
-			throw new InvalidArgumentException("Boolean parameter --".$name." must not have value");
-		}
-		//checks whether a non-boolean parameter has a value.
-		if(count($explode)==1 && in_array($name, $this->longParams)) {
-			throw new InvalidArgumentException("Parameter --".$name." expects value");
-		}
-		
-		if(count($explode)==2) {
-			$this->long[$name] = $explode[1];
-		} else {
-			$this->long[$name] = true;
-		}
-	}
-	
-	private function extractValue(ArgModel $arg) {
-		if(!isset($this->long[$arg->getLongName()]) && $arg->isMandatory()) {
-			throw new Exception("--".$arg->getLongName()." is mandatory");
-		}
-		if(!isset($this->long[$arg->getLongName()]) && $arg->hasDefault()) {
-			$this->argvResult[$arg->getLongName()] = $arg->getDefault();
-			return;
-		}
-		if(!isset($this->long[$arg->getLongName()])) {
-			return;
-		}
-		if($arg->hasValidate()) {
-			$arg->getValidate()->validate($this->long[$arg->getLongName()]);
-		}
-		
-		if($arg->hasConvert()) {
-			$this->argvResult[$arg->getLongName()] = $arg->getConvert()->convert($this->long[$arg->getLongName()]);
-			return;
-		}
-		$this->argvResult[$arg->getLongName()] = $this->long[$arg->getLongName()];
-	}
-	
-	private function extract() {
-		for($i=0;$i<$this->model->getParamCount();$i++) {
-			$arg = $this->model->getArgModel($i);
-			$this->extractValue($arg);
-		}
-		foreach($this->model->getBoolean() as $value) {
-			if(!isset($this->long[$value])) {
-				$this->boolean[$value] = false;
+				$this->getAvailableNamedOrBoolean($value);
 				continue;
 			}
-			$this->boolean[$value] = true;
+			$this->availablePositional[] = $value;
+		}
+		$this->getDefaults();
+	}
+	
+	private function getDefaults() {
+		foreach ($this->model->getArgNames() as $name) {
+			if(isset($this->availableNamed[$name])) {
+				continue;
+			}
+			if(!$this->model->getNamedArg($name)->hasDefault()) {
+				continue;
+			}
+			$this->availableNamed[$name] = $this->model->getNamedArg($name)->getDefault();
 		}
 	}
 	
+	private function getAvailableNamedOrBoolean(string $value) {
+		$exp = explode("=", $value, 2);
+		if(count($exp)==1) {
+			$this->availableBoolean[] = substr($value, 2);
+			return;
+		}
+		$this->availableNamed[substr($exp[0], 2)] = $exp[1];
+	}
+	
+	private function sanityCheck() {
+		$this->booleanSanity();
+		$this->positionalSanity();
+		$this->namedSanity();
+	}
+	
+	private function booleanSanity() {
+		$defined = $this->model->getBoolean();
+		foreach($this->availableBoolean as $value) {
+			if(!in_array($value, $defined)) {
+				throw new ArgvException("unknown boolean parameter --".$value);
+			}
+		}
+	}
+	
+	private function positionalSanity() {
+		$defined = $this->model->getPositionalCount();
+		for($i=0;$i<$defined;$i++) {
+			if(!isset($this->availablePositional[$i])) {
+				throw new ArgvException("Argument ".($i+1)." (".$this->model->getPositionalName($i).") missing");
+			}
+		}
+		if(count($this->availablePositional)>$defined) {
+			throw new ArgvException("Argument ".($defined+1)." not expected");
+		}
+	}
+	
+	private function namedSanity() {
+		$defined = $this->model->getArgNames();
+		foreach($defined as $name) {
+			$arg = $this->model->getNamedArg($name);
+			if(!isset($this->availableNamed[$name]) && $arg->isMandatory()) {
+				throw new ArgvException("mandatory argument --".$name." missing");
+			}
+		}
+		foreach (array_keys($this->availableNamed) as $value) {
+			if(!in_array($value, $defined)) {
+				throw new ArgvException("argument --".$value." not expected");
+			}
+		}
+	}
+	
+	private function validate() {
+		foreach($this->availablePositional as $pos => $value) {
+			$arg = $this->model->getPositionalArg($pos);
+			if(!$arg->hasValidate()) {
+				continue;
+			}
+			try {
+				$arg->getValidate()->validate($value);
+			} catch (ValidateException $e) {
+				throw new ArgvException("argument ".($pos+1)." (".$this->model->getPositionalName($pos)."): ".$e->getMessage());
+			}
+		}
+
+		foreach($this->availableNamed as $name => $value) {
+			$arg = $this->model->getNamedArg($name);
+			if(!$arg->hasValidate()) {
+				continue;
+			}
+			try {
+				$arg->getValidate()->validate($value);
+			} catch (ValidateException $e) {
+				throw new ArgvException("--".$name.": ".$e->getMessage());
+			}
+			
+		}
+
+	}
+
+	private function convert() {
+		foreach($this->availablePositional as $pos => $value) {
+			$arg = $this->model->getPositionalArg($pos);
+			if(!$arg->hasConvert()) {
+				continue;
+			}
+			$this->availablePositional[$pos] = $arg->getConvert()->convert($this->availablePositional[$pos]);
+		}
+
+		foreach($this->availableNamed as $name => $value) {
+			$arg = $this->model->getNamedArg($name);
+			if(!$arg->hasConvert()) {
+				continue;
+			}
+			$this->availableNamed[$name] = $arg->getConvert()->convert($this->availableNamed[$name]);
+		}
+	}
+
 	/**
 	 * Checks whether a certain parameter is available or not. A parameter is
 	 * available if it was used by the calling user or if it's ArgModel has a
@@ -334,7 +534,7 @@ class Argv {
 	 * @return bool
 	 */
 	function hasValue($key):bool {
-		return isset($this->argvResult[$key]);
+		return isset($this->availableNamed[$key]);
 	}
 	/**
 	 * Gets the value of a specific parameter. Note that parameters which are
@@ -349,7 +549,18 @@ class Argv {
 		if(!$this->hasValue($key)) {
 			throw new Exception("argument value ".$key." doesn't exist");
 		}
-	return $this->argvResult[$key];
+	return $this->availableNamed[$key];
+	}
+	
+	function hasPositional(int $pos) {
+		return isset($this->availablePositional[$pos]);
+	}
+	
+	function getPositional(int $pos) {
+		if(!$this->hasPositional($pos)) {
+			throw new Exception("positional argument ".$pos." doesn't exist");
+		}
+	return $this->availablePositional[$pos];
 	}
 	
 	/**
@@ -361,10 +572,10 @@ class Argv {
 	 * @throws Exception
 	 */
 	function getBoolean($key):bool {
-		if(!isset($this->boolean[$key])) {
+		if(!in_array($key, $this->model->getBoolean())) {
 			throw new Exception("boolean argument ".$key." is not defined");
 		}
-	return $this->boolean[$key];
+		return in_array($key, $this->availableBoolean);
 	}
 }
 #Imported from ./include/local/ComponentsAvailable.php
@@ -638,14 +849,12 @@ class Main {
 	private $available;
 	private $argv;
 	function __construct(array $argv, array $ignore) {
+		$model = new ArgvMain();
 		if(!isset($argv[1])) {
-			throw new Exception("Usage: phuild.php <filename> [parameters]");
+			$reference = new ArgvReference($model);
+			$reference->getReference();
 			die();
 		}
-		if(!file_exists($argv[1])) {
-			throw new Exception("file does not exist.");
-		}
-		$model = new ArgvMain();
 		$this->argv = new Argv($argv, $model);
 		$boolean = array("source", "require", "check");
 		$boolCount = 0;
@@ -654,13 +863,13 @@ class Main {
 				$boolCount++;
 			}
 			if($boolCount>1) {
-				throw new Exception("--source, --check and --require are mutually exclusive.");
+				throw new ArgvException("--source, --check and --require are mutually exclusive.");
 			}
 		}
 		if($boolCount==0) {
-			throw new Exception("Needs --source, --check or --require");
+			throw new ArgvException("Needs --source, --check or --require.");
 		}
-		$this->file = $argv[1];
+		$this->file = $this->argv->getPositional(0);
 		$this->sourcePath = dirname($this->file);
 		$this->available = new ComponentsAvailable($this->sourcePath);
 		$this->needed = new ComponentsNeeded($this->file, $this->available, $ignore);
@@ -698,6 +907,6 @@ class Main {
 try {
 	$main = new Main($argv, $ignore);
 	$main->run();
-} catch (Exception $ex) {
+} catch (ArgvException $ex) {
 	echo $ex->getMessage().PHP_EOL;
 }
