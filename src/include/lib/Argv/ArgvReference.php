@@ -29,7 +29,7 @@ class ArgvReference {
 		$return = "";
 		$return .= "Positional Arguments:".PHP_EOL;
 		for($i=0;$i<$count;$i++) {
-			$return .= "\tArgument ".$i.": ";
+			$return .= "\tArgument ".($i+1).": ";
 			$return .= $this->argvModel->getPositionalName($i);
 			$return .= PHP_EOL;
 		}
