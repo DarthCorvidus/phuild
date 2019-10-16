@@ -32,7 +32,7 @@ class Main {
 		if($boolCount==0) {
 			throw new ArgvException("Needs --source, --check or --require.");
 		}
-		$this->file = $argv[1];
+		$this->file = $this->argv->getPositional(0);
 		$this->sourcePath = dirname($this->file);
 		$this->available = new ComponentsAvailable($this->sourcePath);
 		$this->needed = new ComponentsNeeded($this->file, $this->available, $ignore);
