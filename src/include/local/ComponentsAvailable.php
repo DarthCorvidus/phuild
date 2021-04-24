@@ -9,11 +9,16 @@ class ComponentsAvailable {
 	private $files;
 	private $classes;
 	private $sort;
-	function __construct(string $folder) {
-		Assert::fileExists($folder);
-		Assert::isDir($folder);
-		$this->folder = realpath($folder);
-		$this->recurse($this->folder);
+	function __construct(string $directory) {
+		#$this->folder = realpath($folder);
+		$this->addDirectory($directory);
+		#$this->recurse($this->folder);
+	}
+	
+	function addDirectory(string $directory) {
+		Assert::fileExists($directory);
+		Assert::isDir($directory);
+		$this->recurse(realpath($directory));
 	}
 	
 	private function recurse($folder) {

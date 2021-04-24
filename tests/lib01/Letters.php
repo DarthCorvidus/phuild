@@ -1,22 +1,20 @@
 <?php
-
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-/**
- * Description of Letters
- *
- * @author hm
- */
-class Letters {
+class Letters implements Character {
+	private $letters = array();
 	function __construct() {
-		;
+		for($i= ord("A"); $i<= ord("X");$i++) {
+			$this->letters[] = chr($i);
+		}
+		for($i= ord("a"); $i<= ord("b");$i++) {
+			$this->letters[] = chr($i);
+		}
 	}
-	
-	function getA() {
-		return "A";
+
+	public function getCharacter(int $i): string {
+		return $this->letters[$i];
+	}
+
+	public function getCount(): int {
+		return count($this->letters);
 	}
 }
