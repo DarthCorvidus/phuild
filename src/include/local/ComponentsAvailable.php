@@ -55,10 +55,19 @@ class ComponentsAvailable {
 		}
 	}
 	
-	private function parse($file) {
+	/**
+	 * Extract Components
+	 * 
+	 * Isolated method to extract components out of a PHP file. Isolated from
+	 * parse() for better testing.
+	 * @param type $file
+	 * @return array
+	 */
+	static function extractComponents($file): array {
+		$components = array();
 		$string = file_get_contents($file);
 		$tokens = token_get_all($string);
-
+		
 		$interesting = array(T_CLASS, T_INTERFACE);
 		foreach($tokens as $key => $value) {
 			if(!is_array($value)) {
@@ -73,7 +82,15 @@ class ComponentsAvailable {
 			if($tokens[$key+1][0]!=T_WHITESPACE) {
 				continue;
 			}
-			$this->classes[$tokens[$key+2][1]] = $file;
+			$components[] = $tokens[$key+2][1];
+		}
+	return $components;
+	}
+	
+	private function parse($file) {
+		$classes = self::extractComponents($file);
+		foreach ($classes as $value) {
+			$this->classes[$value] = $file;
 		}
 	}
 	

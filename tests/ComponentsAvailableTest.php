@@ -2,9 +2,30 @@
 declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 class ComponentsAvailableTest extends TestCase {
-	#function testExtractClasses() {
-	#	
-	#}
+	/**
+	 * Test extract component
+	 * 
+	 * Extracts a component definition out of a file that contains one
+	 * definition.
+	 */
+	function testExtractComponent() {
+		$expect = array();
+		$expect[] = "Character";
+		$this->assertEquals($expect, ComponentsAvailable::extractComponents(__DIR__."/lib01/Character.php"));
+	}
+
+	/**
+	 * Test extract components
+	 * 
+	 * Test to extract multiple component definitions out of one file.
+	 */
+	function testExtractComponents() {
+		$expect = array();
+		$expect[] = "Animal";
+		$expect[] = "Mammal";
+		$expect[] = "Dog";
+		$this->assertEquals($expect, ComponentsAvailable::extractComponents(__DIR__."/lib02/Animal.php"));
+	}
 	
 	/**
 	 * Test Construct
@@ -89,6 +110,9 @@ class ComponentsAvailableTest extends TestCase {
 		$expected["Character "] = __DIR__."/lib01/Character.php";
 		$expected["Letters"] = __DIR__."/lib01/Letters.php";
 		$expected["Numbers"] = __DIR__."/lib02/Digits.php";
+		$expected["Animal"] = __DIR__."/lib02/Animal.php";
+		$expected["Mammal"] = __DIR__."/lib02/Animal.php";
+		$expected["Dog"] = __DIR__."/lib02/Animal.php";
 		sort($expected);
 		$ca = new ComponentsAvailable(__DIR__."/lib01/");
 		$ca->addDirectory(__DIR__."/lib02/");
