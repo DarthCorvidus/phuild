@@ -2,6 +2,10 @@
 declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 class ComponentsAvailableTest extends TestCase {
+	#function testExtractClasses() {
+	#	
+	#}
+	
 	/**
 	 * Test Construct
 	 * 
@@ -78,6 +82,17 @@ class ComponentsAvailableTest extends TestCase {
 		$ca->addFile(__DIR__."/lib02/Digits.php");
 		$this->assertEquals(__DIR__."/lib01/Letters.php", $ca->getComponent("Letters"));
 		$this->assertEquals(__DIR__."/lib02/Digits.php", $ca->getComponent("Digits"));
+	}
+	
+	function testGetComponents() {
+		$expected = array();
+		$expected["Character "] = __DIR__."/lib01/Character.php";
+		$expected["Letters"] = __DIR__."/lib01/Letters.php";
+		$expected["Numbers"] = __DIR__."/lib02/Digits.php";
+		sort($expected);
+		$ca = new ComponentsAvailable(__DIR__."/lib01/");
+		$ca->addDirectory(__DIR__."/lib02/");
+		$this->assertEquals($expected, $ca->getComponents());
 	}
 
 }

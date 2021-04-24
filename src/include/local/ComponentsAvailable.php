@@ -59,7 +59,7 @@ class ComponentsAvailable {
 			$this->parse($value);
 		}
 	}
-
+	
 	private function parse($file) {
 		$string = file_get_contents($file);
 		$tokens = token_get_all($string);
@@ -110,4 +110,14 @@ class ComponentsAvailable {
 		return $this->classes[$component];
 	}
 	
+	/**
+	 * Get Components
+	 * 
+	 * Get the components gathered by ComponentsAvailable.
+	 * @return array
+	 */
+	function getComponents(): array {
+		sort($this->classes);
+	return $this->classes;
+	}
 }
