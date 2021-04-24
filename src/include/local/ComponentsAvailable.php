@@ -10,6 +10,8 @@ class ComponentsAvailable {
 	private $classes;
 	private $sort;
 	function __construct(string $folder) {
+		Assert::fileExists($folder);
+		Assert::isDir($folder);
 		$this->folder = realpath($folder);
 		$this->recurse($this->folder);
 	}
