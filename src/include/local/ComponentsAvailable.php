@@ -30,7 +30,7 @@ class ComponentsAvailable {
 			$this->parse($value);
 		}
 	}
-	
+
 	private function parse($file) {
 		$string = file_get_contents($file);
 		$tokens = token_get_all($string);

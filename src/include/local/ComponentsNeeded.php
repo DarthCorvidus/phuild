@@ -18,9 +18,12 @@ class ComponentsNeeded {
 		$this->parse($file);
 	}
 
-	private function addClass(string $file, string $className) {
+	private function addClass(string $file, string $className, $token = array()) {
 		if(in_array($className, $this->ignore)) {
 			return;
+		}
+		if($className[0]=="\$") {
+			throw new Exception("class name ".$className." in ".$file." line ".$token[2]." contains a variable.");
 		}
 		if(!$this->components->hasComponent($className)) {
 			$this->classes[] = $className;
@@ -75,7 +78,7 @@ class ComponentsNeeded {
 			$string = file_get_contents($file);
 		}
 		$tokens = token_get_all($string);
-
+		print_r($tokens);
 		$interesting = array(T_IMPLEMENTS, T_EXTENDS, T_NEW);
 		foreach($tokens as $key => $value) {
 			if(!is_array($value)) {
@@ -83,7 +86,7 @@ class ComponentsNeeded {
 			}
 			if($value[0]==T_DOUBLE_COLON) {
 				$className = $tokens[$key-1][1];
-				$this->addClass($file, $className);
+				$this->addClass($file, $className, $tokens[$key-1]);
 				continue;
 			}
 			if(!in_array($value[0], $interesting)) {
@@ -96,7 +99,7 @@ class ComponentsNeeded {
 				continue;
 			}
 			$className = $tokens[$key+2][1];
-			$this->addClass($file, $className);
+			$this->addClass($file, $className, $tokens[$key+2]);
 		}
 	}
 	
