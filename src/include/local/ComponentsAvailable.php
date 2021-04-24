@@ -9,16 +9,38 @@ class ComponentsAvailable {
 	private $files;
 	private $classes;
 	private $sort;
+	/**
+	 * 
+	 * @param string $directory
+	 */
 	function __construct(string $directory) {
 		#$this->folder = realpath($folder);
 		$this->addDirectory($directory);
 		#$this->recurse($this->folder);
 	}
 	
+	/**
+	 * Add Directory
+	 * 
+	 * Add another directory to an instance of ComponentsAvailable
+	 * @param string $directory Directory containing PHP files
+	 */
 	function addDirectory(string $directory) {
 		Assert::fileExists($directory);
 		Assert::isDir($directory);
 		$this->recurse(realpath($directory));
+	}
+
+	/**
+	 * Add File
+	 * 
+	 * Add a single file containing PHP classes.
+	 * @param type $file
+	 */
+	function addFile($file) {
+		Assert::fileExists($file);
+		Assert::isFile($file);
+		$this->parse($file);
 	}
 	
 	private function recurse($folder) {
@@ -60,6 +82,27 @@ class ComponentsAvailable {
 		}
 	}
 	
+	/**
+	 * Has Component
+	 * 
+	 * Checks if an instance of ComponentsAvailable knows the whereabouts of a
+	 * specific component.
+	 * @param string $component
+	 * @return bool
+	 */
+	public function hasComponent(string $component):bool {
+		return isset($this->classes[$component]);
+	}
+	
+	/**
+	 * Get Component
+	 * 
+	 * Returns the path of the file that contains a certain Component. Throws an
+	 * Exception if a Component cannot be resolved to a file.
+	 * @param string $component
+	 * @return type
+	 * @throws Exception
+	 */
 	public function getComponent(string $component) {
 		if(!$this->hasComponent($component)) {
 			throw new Exception("component ".$component." not known.");
@@ -67,7 +110,4 @@ class ComponentsAvailable {
 		return $this->classes[$component];
 	}
 	
-	public function hasComponent(string $component):bool {
-		return isset($this->classes[$component]);
-	}
 }

@@ -67,5 +67,17 @@ class ComponentsAvailableTest extends TestCase {
 		$this->assertEquals(__DIR__."/lib01/Letters.php", $ca->getComponent("Letters"));
 		$this->assertEquals(__DIR__."/lib02/Digits.php", $ca->getComponent("Digits"));
 	}
+	
+	/**
+	 * Test Add Single File
+	 * 
+	 * Test to add a single file
+	 */
+	function testAddSingleFile() {
+		$ca = new ComponentsAvailable(__DIR__."/lib01/");
+		$ca->addFile(__DIR__."/lib02/Digits.php");
+		$this->assertEquals(__DIR__."/lib01/Letters.php", $ca->getComponent("Letters"));
+		$this->assertEquals(__DIR__."/lib02/Digits.php", $ca->getComponent("Digits"));
+	}
 
 }
