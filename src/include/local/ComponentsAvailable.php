@@ -5,18 +5,13 @@
  * @license GPLv3
  */
 class ComponentsAvailable {
-	private $folder;
-	private $files;
 	private $classes;
-	private $sort;
 	/**
 	 * 
 	 * @param string $directory
 	 */
 	function __construct(string $directory) {
-		#$this->folder = realpath($folder);
 		$this->addDirectory($directory);
-		#$this->recurse($this->folder);
 	}
 	
 	/**
