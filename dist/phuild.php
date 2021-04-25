@@ -586,13 +586,41 @@ class Argv {
  * @license GPLv3
  */
 class ComponentsAvailable {
-	private $folder;
-	private $files;
 	private $classes;
-	private $sort;
-	function __construct(string $folder) {
-		$this->folder = realpath($folder);
-		$this->recurse($this->folder);
+	/**
+	 * 
+	 * @param string $directory
+	 */
+	function __construct(string $directory) {
+		$this->addDirectory($directory);
+	}
+	
+	/**
+	 * Add Directory
+	 * 
+	 * Add another directory to an instance of ComponentsAvailable
+	 * @param string $directory Directory containing PHP files
+	 */
+	function addDirectory(string $directory) {
+		#Assert::fileExists($directory);
+		#Assert::isDir($directory);
+		if(!file_exists($directory)) {
+			throw new InvalidArgumentException("directory ".$directory." does not exist.");
+		}
+
+		$this->recurse(realpath($directory));
+	}
+
+	/**
+	 * Add File
+	 * 
+	 * Add a single file containing PHP classes.
+	 * @param type $file
+	 */
+	function addFile($file) {
+		#Assert::fileExists($file);
+		#Assert::isFile($file);
+		$this->parse($file);
 	}
 	
 	private function recurse($folder) {
@@ -611,11 +639,20 @@ class ComponentsAvailable {
 			$this->parse($value);
 		}
 	}
-
-	private function parse($file) {
+	
+	/**
+	 * Extract Components
+	 * 
+	 * Isolated method to extract components out of a PHP file. Isolated from
+	 * parse() for better testing.
+	 * @param type $file
+	 * @return array
+	 */
+	static function extractComponents($file): array {
+		$components = array();
 		$string = file_get_contents($file);
 		$tokens = token_get_all($string);
-
+		
 		$interesting = array(T_CLASS, T_INTERFACE);
 		foreach($tokens as $key => $value) {
 			if(!is_array($value)) {
@@ -630,10 +667,39 @@ class ComponentsAvailable {
 			if($tokens[$key+1][0]!=T_WHITESPACE) {
 				continue;
 			}
-			$this->classes[$tokens[$key+2][1]] = $file;
+			$components[] = $tokens[$key+2][1];
+		}
+	return $components;
+	}
+	
+	private function parse($file) {
+		$classes = self::extractComponents($file);
+		foreach ($classes as $value) {
+			$this->classes[$value] = $file;
 		}
 	}
 	
+	/**
+	 * Has Component
+	 * 
+	 * Checks if an instance of ComponentsAvailable knows the whereabouts of a
+	 * specific component.
+	 * @param string $component
+	 * @return bool
+	 */
+	public function hasComponent(string $component):bool {
+		return isset($this->classes[$component]);
+	}
+	
+	/**
+	 * Get Component
+	 * 
+	 * Returns the path of the file that contains a certain Component. Throws an
+	 * Exception if a Component cannot be resolved to a file.
+	 * @param string $component
+	 * @return type
+	 * @throws Exception
+	 */
 	public function getComponent(string $component) {
 		if(!$this->hasComponent($component)) {
 			throw new Exception("component ".$component." not known.");
@@ -641,8 +707,15 @@ class ComponentsAvailable {
 		return $this->classes[$component];
 	}
 	
-	public function hasComponent(string $component):bool {
-		return isset($this->classes[$component]);
+	/**
+	 * Get Components
+	 * 
+	 * Get the components gathered by ComponentsAvailable.
+	 * @return array
+	 */
+	function getComponents(): array {
+		sort($this->classes);
+	return $this->classes;
 	}
 }
 #Imported from ./include/local/ComponentsNeeded.php
@@ -659,14 +732,42 @@ class ComponentsNeeded {
 	private $ignore = array();
 	const REQONCE = 1;
 	const SOURCE = 2;
+	/**
+	 * Constructor
+	 * 
+	 * Needs a file to start upon and ComponentsAvailable to look up further
+	 * files containing dependencies.
+	 * $ignore contains component names which should be ignored altogether - for
+	 * instance, PHP's builtin classes, which are determined by phuild.php right
+	 * at the start of the script before anything else is done.
+	 * 
+	 * @param type $file
+	 * @param ComponentsAvailable $ca
+	 * @param array $ignore
+	 */
 	function __construct($file, ComponentsAvailable $ca, array $ignore) {
+		#Assert::fileExists($file);
+		if(!file_exists($file)) {
+			throw new InvalidArgumentException("directory ".$file." does not exist.");
+		}
 		$this->main = realpath($file);
 		$this->components = $ca;
 		$this->ignore = $ignore;
 		$this->parse($file);
 	}
 
-	private function addClass(string $file, string $className) {
+	/**
+	 * AddClass
+	 * 
+	 * AddClass() adds a component to the stack of necessary components and
+	 * parses deeper into the class hierarchy, IE if the first file showed that
+	 * class Dog is needed, the file Dog will be parsed to determine further
+	 * dependencies.
+	 * 
+	 * @param type $className
+	 * @return type
+	 */
+	private function addClass($className) {
 		if(in_array($className, $this->ignore)) {
 			return;
 		}
@@ -688,50 +789,69 @@ class ComponentsNeeded {
 		$this->classes[] = $className;
 	}
 	
-	private function getMainFile(): string {
-		$result = "";
-		$bb = false;
-		$file = file($this->main);
-		foreach($file as $line) {
-			$trimmed = trim($line);
-			if($trimmed=="#Include") {
-				$result .= $line;
-				$bb = true;
-				continue;
-			}
-			if($trimmed=="#/Include") {
-				$result .= $line;
-				$bb = false;
-				continue;
-			}
-			if($bb == true) {
-				continue;
-			}
-		$result .= $line;
+	/**
+	 * checkClassname
+	 * 
+	 * Checks if a classname is valid. By now, only variables instead of class
+	 * names will result in a RuntimeException.
+	 * @param type $classname
+	 * @param type $filename
+	 * @param int $line
+	 * @throws RuntimeException
+	 */
+	private static function checkClassname($classname, $filename, int $line) {
+		if($classname[0]=="\$") {
+			throw new RuntimeException("class name ".$classname." in ".$filename." line ".$line." contains a variable.");
 		}
-	return $result;
 	}
 	
-	private function parse($file) {
-		if($file==$this->main) {
-			/**
-			 * Any #Build block has to be ignored for the main file, as code
-			 * therein will be replaced and must not trigger dependencies.
-			 */
-			$string = $this->getMainFile();
-		} else {
-			$string = file_get_contents($file);
-		}
+	/**
+	 * extract needed
+	 * 
+	 * extractNeeded parses a file using PHP's own tokenizer. It then
+	 * specifically looks for T_IMPLEMENTS, T_NEW, T_EXTENDS and T_DOUBLE_COLON,
+	 * aka T_PAAMAYIM_NEKUDOTAYIM to determine which classes/interfaces are used
+	 * within a file.
+	 * Tokens between #Include and #/Include are skipped.
+	 * 
+	 * A runtime exception is thrown if a variable is used for a classname,
+	 * ie new $name();. There is no way for phuild to determine the content.
+	 * 
+	 * @param string $file
+	 * @return array
+	 * @throws RuntimeException
+	 */
+	static function extractNeeded(string $file): array {
+		$needed = array();
+		$string = file_get_contents($file);
 		$tokens = token_get_all($string);
-
 		$interesting = array(T_IMPLEMENTS, T_EXTENDS, T_NEW);
+		$ignore = FALSE;
 		foreach($tokens as $key => $value) {
 			if(!is_array($value)) {
 				continue;
 			}
+			/*
+			 * We have to ignore any #Include-Block, allowing the developer
+			 * to for instance use a custom autoloader without it counting as
+			 * a required component. 
+			 */
+			if($value[0] == T_COMMENT && trim($value[1]) == "#Include") {
+				$ignore = true;
+				continue;
+			}
+			if($value[0] == T_COMMENT && trim($value[1]) == "#/Include") {
+				$ignore = FALSE;
+				continue;
+			}
+			if($ignore==TRUE) {
+				continue;
+			}
+			
 			if($value[0]==T_DOUBLE_COLON) {
 				$className = $tokens[$key-1][1];
-				$this->addClass($file, $className);
+				self::checkClassname($className, $file, $tokens[$key-1][2]);
+				$needed[] = $className;
 				continue;
 			}
 			if(!in_array($value[0], $interesting)) {
@@ -744,7 +864,23 @@ class ComponentsNeeded {
 				continue;
 			}
 			$className = $tokens[$key+2][1];
-			$this->addClass($file, $className);
+			self::checkClassname($className, $file, $tokens[$key+2][2]);
+			$needed[] = $className;
+		}
+	return $needed;
+	}
+	
+	/**
+	 * parse
+	 * 
+	 * parse() does little more than to call extractNeeded and then addClass on
+	 * every result.
+	 * @param type $file
+	 */
+	private function parse($file) {
+		$components = self::extractNeeded($file);
+		foreach($components as $className) {
+			$this->addClass($className);
 		}
 	}
 	
