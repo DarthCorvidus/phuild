@@ -12,6 +12,7 @@ class ComponentsNeeded {
 	const REQONCE = 1;
 	const SOURCE = 2;
 	function __construct($file, ComponentsAvailable $ca, array $ignore) {
+		Assert::fileExists($file);
 		$this->main = realpath($file);
 		$this->components = $ca;
 		$this->ignore = $ignore;
@@ -66,6 +67,43 @@ class ComponentsNeeded {
 		}
 	return $result;
 	}
+
+	private static function checkClassname($classname, $filename, int $line) {
+		if($classname[0]=="\$") {
+			throw new RuntimeException("class name ".$classname." in ".$filename." line ".$line." contains a variable.");
+		}
+	}
+	
+	static function extractNeeded(string $file) {
+		$needed = array();
+		$string = file_get_contents($file);
+		$tokens = token_get_all($string);
+		$interesting = array(T_IMPLEMENTS, T_EXTENDS, T_NEW);
+		foreach($tokens as $key => $value) {
+			if(!is_array($value)) {
+				continue;
+			}
+			if($value[0]==T_DOUBLE_COLON) {
+				$className = $tokens[$key-1][1];
+				self::checkClassname($className, $file, $tokens[$key-1][2]);
+				$needed[] = $className;
+				continue;
+			}
+			if(!in_array($value[0], $interesting)) {
+				continue;
+			}
+			if(!isset($tokens[$key+1]) || !isset($tokens[$key+2])) {
+				continue;
+			}
+			if($tokens[$key+1][0]!=T_WHITESPACE) {
+				continue;
+			}
+			$className = $tokens[$key+2][1];
+			self::checkClassname($className, $file, $tokens[$key+2][2]);
+			$needed[] = $className;
+		}
+	return $needed;
+	}
 	
 	private function parse($file) {
 		if($file==$this->main) {
@@ -78,7 +116,6 @@ class ComponentsNeeded {
 			$string = file_get_contents($file);
 		}
 		$tokens = token_get_all($string);
-		print_r($tokens);
 		$interesting = array(T_IMPLEMENTS, T_EXTENDS, T_NEW);
 		foreach($tokens as $key => $value) {
 			if(!is_array($value)) {

@@ -113,6 +113,7 @@ class ComponentsAvailableTest extends TestCase {
 		$expected["Animal"] = __DIR__."/lib02/Animal.php";
 		$expected["Mammal"] = __DIR__."/lib02/Animal.php";
 		$expected["Dog"] = __DIR__."/lib02/Animal.php";
+		$expected["Stringtools"] = __DIR__."/lib02/Stringtools.php";
 		sort($expected);
 		$ca = new ComponentsAvailable(__DIR__."/lib01/");
 		$ca->addDirectory(__DIR__."/lib02/");
