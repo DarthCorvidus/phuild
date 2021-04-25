@@ -25,7 +25,10 @@ class ComponentsNeeded {
 	 * @param array $ignore
 	 */
 	function __construct($file, ComponentsAvailable $ca, array $ignore) {
-		Assert::fileExists($file);
+		#Assert::fileExists($file);
+		if(!file_exists($file)) {
+			throw new InvalidArgumentException("directory ".$file." does not exist.");
+		}
 		$this->main = realpath($file);
 		$this->components = $ca;
 		$this->ignore = $ignore;

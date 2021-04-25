@@ -21,8 +21,12 @@ class ComponentsAvailable {
 	 * @param string $directory Directory containing PHP files
 	 */
 	function addDirectory(string $directory) {
-		Assert::fileExists($directory);
-		Assert::isDir($directory);
+		#Assert::fileExists($directory);
+		#Assert::isDir($directory);
+		if(!file_exists($directory)) {
+			throw new InvalidArgumentException("directory ".$directory." does not exist.");
+		}
+
 		$this->recurse(realpath($directory));
 	}
 
@@ -33,8 +37,8 @@ class ComponentsAvailable {
 	 * @param type $file
 	 */
 	function addFile($file) {
-		Assert::fileExists($file);
-		Assert::isFile($file);
+		#Assert::fileExists($file);
+		#Assert::isFile($file);
 		$this->parse($file);
 	}
 	
