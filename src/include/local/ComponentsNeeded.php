@@ -11,6 +11,19 @@ class ComponentsNeeded {
 	private $ignore = array();
 	const REQONCE = 1;
 	const SOURCE = 2;
+	/**
+	 * Constructor
+	 * 
+	 * Needs a file to start upon and ComponentsAvailable to look up further
+	 * files containing dependencies.
+	 * $ignore contains component names which should be ignored altogether - for
+	 * instance, PHP's builtin classes, which are determined by phuild.php right
+	 * at the start of the script before anything else is done.
+	 * 
+	 * @param type $file
+	 * @param ComponentsAvailable $ca
+	 * @param array $ignore
+	 */
 	function __construct($file, ComponentsAvailable $ca, array $ignore) {
 		Assert::fileExists($file);
 		$this->main = realpath($file);
@@ -19,12 +32,20 @@ class ComponentsNeeded {
 		$this->parse($file);
 	}
 
-	private function addClass(string $file, string $className, $token = array()) {
+	/**
+	 * AddClass
+	 * 
+	 * AddClass() adds a component to the stack of necessary components and
+	 * parses deeper into the class hierarchy, IE if the first file showed that
+	 * class Dog is needed, the file Dog will be parsed to determine further
+	 * dependencies.
+	 * 
+	 * @param type $className
+	 * @return type
+	 */
+	private function addClass($className) {
 		if(in_array($className, $this->ignore)) {
 			return;
-		}
-		if($className[0]=="\$") {
-			throw new Exception("class name ".$className." in ".$file." line ".$token[2]." contains a variable.");
 		}
 		if(!$this->components->hasComponent($className)) {
 			$this->classes[] = $className;
@@ -44,45 +65,65 @@ class ComponentsNeeded {
 		$this->classes[] = $className;
 	}
 	
-	private function getMainFile(): string {
-		$result = "";
-		$bb = false;
-		$file = file($this->main);
-		foreach($file as $line) {
-			$trimmed = trim($line);
-			if($trimmed=="#Include") {
-				$result .= $line;
-				$bb = true;
-				continue;
-			}
-			if($trimmed=="#/Include") {
-				$result .= $line;
-				$bb = false;
-				continue;
-			}
-			if($bb == true) {
-				continue;
-			}
-		$result .= $line;
-		}
-	return $result;
-	}
-
+	/**
+	 * checkClassname
+	 * 
+	 * Checks if a classname is valid. By now, only variables instead of class
+	 * names will result in a RuntimeException.
+	 * @param type $classname
+	 * @param type $filename
+	 * @param int $line
+	 * @throws RuntimeException
+	 */
 	private static function checkClassname($classname, $filename, int $line) {
 		if($classname[0]=="\$") {
 			throw new RuntimeException("class name ".$classname." in ".$filename." line ".$line." contains a variable.");
 		}
 	}
 	
-	static function extractNeeded(string $file) {
+	/**
+	 * extract needed
+	 * 
+	 * extractNeeded parses a file using PHP's own tokenizer. It then
+	 * specifically looks for T_IMPLEMENTS, T_NEW, T_EXTENDS and T_DOUBLE_COLON,
+	 * aka T_PAAMAYIM_NEKUDOTAYIM to determine which classes/interfaces are used
+	 * within a file.
+	 * Tokens between #Include and #/Include are skipped.
+	 * 
+	 * A runtime exception is thrown if a variable is used for a classname,
+	 * ie new $name();. There is no way for phuild to determine the content.
+	 * 
+	 * @param string $file
+	 * @return array
+	 * @throws RuntimeException
+	 */
+	static function extractNeeded(string $file): array {
 		$needed = array();
 		$string = file_get_contents($file);
 		$tokens = token_get_all($string);
 		$interesting = array(T_IMPLEMENTS, T_EXTENDS, T_NEW);
+		$ignore = FALSE;
 		foreach($tokens as $key => $value) {
 			if(!is_array($value)) {
 				continue;
 			}
+			/*
+			 * We have to ignore any #Include-Block, allowing the developer
+			 * to for instance use a custom autoloader without it counting as
+			 * a required component. 
+			 */
+			if($value[0] == T_COMMENT && trim($value[1]) == "#Include") {
+				$ignore = true;
+				continue;
+			}
+			if($value[0] == T_COMMENT && trim($value[1]) == "#/Include") {
+				$ignore = FALSE;
+				continue;
+			}
+			if($ignore==TRUE) {
+				continue;
+			}
+			
 			if($value[0]==T_DOUBLE_COLON) {
 				$className = $tokens[$key-1][1];
 				self::checkClassname($className, $file, $tokens[$key-1][2]);
@@ -105,38 +146,17 @@ class ComponentsNeeded {
 	return $needed;
 	}
 	
+	/**
+	 * parse
+	 * 
+	 * parse() does little more than to call extractNeeded and then addClass on
+	 * every result.
+	 * @param type $file
+	 */
 	private function parse($file) {
-		if($file==$this->main) {
-			/**
-			 * Any #Build block has to be ignored for the main file, as code
-			 * therein will be replaced and must not trigger dependencies.
-			 */
-			$string = $this->getMainFile();
-		} else {
-			$string = file_get_contents($file);
-		}
-		$tokens = token_get_all($string);
-		$interesting = array(T_IMPLEMENTS, T_EXTENDS, T_NEW);
-		foreach($tokens as $key => $value) {
-			if(!is_array($value)) {
-				continue;
-			}
-			if($value[0]==T_DOUBLE_COLON) {
-				$className = $tokens[$key-1][1];
-				$this->addClass($file, $className, $tokens[$key-1]);
-				continue;
-			}
-			if(!in_array($value[0], $interesting)) {
-				continue;
-			}
-			if(!isset($tokens[$key+1]) || !isset($tokens[$key+2])) {
-				continue;
-			}
-			if($tokens[$key+1][0]!=T_WHITESPACE) {
-				continue;
-			}
-			$className = $tokens[$key+2][1];
-			$this->addClass($file, $className, $tokens[$key+2]);
+		$components = self::extractNeeded($file);
+		foreach($components as $className) {
+			$this->addClass($className);
 		}
 	}
 	

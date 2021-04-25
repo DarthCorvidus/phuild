@@ -45,6 +45,18 @@ class ComponentsNeededTest extends TestCase {
 	}
 
 	/**
+	 * Test Ignore Include Block
+	 * 
+	 * Any code between #Include and #/Include has to be ignored
+	 */
+	function testIgnoreIncludeBlock() {
+		$needed = ComponentsNeeded::extractNeeded(__DIR__."/example/include.php");
+		#$string = file_get_contents(__DIR__."/example/include.php");
+		#print_r(token_get_all($string));
+		$this->assertEquals(array("Dog"), $needed);
+	}
+	
+	/**
 	 * Test construct
 	 * 
 	 * Just construct an instance of ComponentsNeeded
