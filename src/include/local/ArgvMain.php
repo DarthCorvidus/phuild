@@ -16,8 +16,8 @@ class ArgvMain implements ArgvModel{
 	private $positional = array();
 	private $positionalNames = array();
 	public function __construct() {
-		$this->arg["output"] = new ArgString();
-		$this->positional[] = new ArgString();
+		$this->arg["output"] = new ArgGeneric();
+		$this->positional[] = new ArgGeneric();
 		$this->positionalNames[] = "source";
 	}
 	public function getBoolean(): array {
