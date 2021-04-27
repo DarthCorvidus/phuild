@@ -1,0 +1,15 @@
+## YAML Template.
+---
+- name: Build Character
+  source: example/characters.php
+  target: dist/characters.php
+  includes:
+      - lib01
+      - lib02
+
+- name: Build Dog
+  source: example/dog.php
+  target: dist/dog.php
+  includes:
+      - lib01
+      - lib02
