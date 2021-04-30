@@ -1,0 +1,8 @@
+## YAML Template.
+---
+- name: Build Phuild
+  source: src/phuild.php
+  target: dist/phuild.php
+  includes:
+      - vendor/plibv4
+      - src/include

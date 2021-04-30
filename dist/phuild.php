@@ -51,7 +51,7 @@ $ignore[] = "self";
 $ignore[] = "parent";
 
 #Include
-#Imported from ./include/lib/Argv/ArgvModel.php
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/argv/src/ArgvModel.php
 
 /**
  * @copyright (c) 2019, Claus-Christoph Küthe
@@ -60,26 +60,50 @@ $ignore[] = "parent";
  */
 
 /**
- * Interface for model as expected by Argv.
+ * Interface for model as expected by Argv; ArgvModel is supposed to contain
+ * several ArgModels, one for each argument.
  */
 interface ArgvModel {
+	/**
+	 * Get the names of named arguments as an array, eg. [input, output] for
+	 * what should be 'example.php --input=<value> --output=<value>'.
+	 * @return array
+	 */
 	public function getArgNames(): array;
 	
+	/**
+	 * Get model for named argument.
+	 * @param string $name
+	 * @return ArgModel Description
+	 */
 	public function getNamedArg(string $name): ArgModel;
 
+	/**
+	 * Get number of positional accounts
+	 */
 	public function getPositionalCount(): int;
 	
+	/**
+	 * Get ArgModel for positional account (0-indexed)
+	 * @param int $i
+	 */
 	public function getPositionalArg(int $i): ArgModel;
 	
+	/**
+	 * Get positional name; the name will be used in error messages if the user
+	 * fails to deliver a positional argument.
+	 * @param int $i
+	 */
 	public function getPositionalName(int $i): string;
 	
 	/**
 	 * return an array of pure boolean parameters without a value, which will
-	 * evaluate to true if set.
+	 * evaluate to true if set; eg. the array("run", "log") stands for the
+	 * boolean parameters 'example.php --run --log'.
 	 */
 	function getBoolean(): array;
 }
-#Imported from ./include/lib/Argv/ArgModel.php
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/argv/src/ArgModel.php
 
 /**
  * @copyright (c) 2019, Claus-Christoph Küthe
@@ -98,6 +122,10 @@ interface ArgModel {
 	/**
 	 * returns a default value if it has one. If, for instance, --date is used,
 	 * it could be set to „now“.
+	 * Note that Argv expects the default value to validate the same way as user
+	 * input, ie if you force the user to adhere to, say, HH:MM:SS for time,
+	 * your default value has adhere too. It will also be converted the same
+	 * way as user input.
 	 */
 	function getDefault(): string;
 	/**
@@ -125,67 +153,243 @@ interface ArgModel {
 	 * it to convert any input.
 	 */
 	function getConvert():Convert;
+	/**
+	 * Should return true if parameter is supposed to be mandatory. Mandatory
+	 * parameters will cause Argv an ArgvException when the user forgets to
+	 * set it.
+	 * If a default value is set, Argv will take the default value if the user
+	 * input is missing, without throwing an ArgvException.
+	 */
 	function isMandatory():bool;
 }
-#Imported from ./include/lib/Argv/ArgString.php
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/argv/src/ArgGeneric.php
 
 /**
- * @copyright (c) 2019, Claus-Christoph Küthe
+ * @copyright (c) 2021, Claus-Christoph Küthe
  * @author Claus-Christoph Küthe <floss@vm01.telton.de>
  * @license LGPL
  */
-class ArgString implements ArgModel {
-	private $default;
-	private $mandatory = false;
+
+/**
+ * Generic implementation of ArgModel
+ * 
+ * The idea behind Argv is to write your own implementations of ArgModel, but
+ * sometimes, it may be sufficient to use a generic implementation. It is also
+ * needed for unit tests.
+ */
+class ArgGeneric implements ArgModel {
 	private $validate;
 	private $convert;
-	public function __construct() {
-	}
-
-	public function setMandatory(bool $mandatory) {
-		$this->mandatory = $mandatory;
+	private $default;
+	private $mandatory = false;
+	/**
+	 * Set a validator
+	 * 
+	 * Set a validator, which will be run against user input or default value.
+	 * @param Validate $validate
+	 */
+	public function setValidate(Validate $validate) {
+		$this->validate = $validate;
 	}
 	
+	/**
+	 * Set a converter
+	 * 
+	 * Set an implementation of Convert, which will be run against user input or
+	 * a default value. It is recommended to use a validator in conjunction with
+	 * an implementation of convert, as Validate will be executed before
+	 * convert, therefore protecting the converter from unusable values.
+	 * @param Convert $convert
+	 */
 	public function setConvert(Convert $convert) {
 		$this->convert = $convert;
 	}
 
-	public function hasConvert(): bool {
-		return $this->convert!==NULL;
+	/**
+	 * Set a default value
+	 * 
+	 * Sets a default value which will be used instead of user input, if the
+	 * user fails to provide a parameter. Using default values may spare you
+	 * some if/else-constructs.
+	 */
+	public function setDefault(string $default) {
+		$this->default = $default;
+	}
+	
+	/**
+	 * Sets an argument to be mandatory
+	 * 
+	 * A mandatory argument forces the user to supply an argument, unless a
+	 * default value is set.
+	 * @param bool $boolean
+	 */
+	public function setMandatory() {
+		$this->mandatory = TRUE;
 	}
 	
 	public function getConvert(): Convert {
 		return $this->convert;
 	}
 
-	public function setDefault(string $default) {
-		$this->default = $default;
-	}
-
-	public function hasDefault(): bool {
-		return $this->default!==NULL;
-	}
-	
 	public function getDefault(): string {
 		return $this->default;
-	}
-
-	public function setValidate(Validate $validate) {
-		$this->validate = $validate;
-	}
-
-	public function hasValidate(): bool {
-		return $this->validate!=NULL;
 	}
 
 	public function getValidate(): Validate {
 		return $this->validate;
 	}
 
+	public function hasConvert(): bool {
+		return $this->convert!==NULL;
+	}
+
+	public function hasDefault(): bool {
+		return $this->default!==NULL;
+	}
+
+	public function hasValidate(): bool {
+		return $this->validate!==NULL;
+	}
+
 	public function isMandatory(): bool {
 		return $this->mandatory;
 	}
 
+}
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/convert/src/Convert.php
+
+/**
+ * Interface to convert one format into another.
+ * 
+ * The idea of Convert is to convert user input or other sources from one format
+ * into another.
+ * @author Claus-Christoph Küthe
+ * @copyright (c) 2020, Claus-Christoph Küthe
+ */
+interface Convert {
+	/**
+	 * Convert string from one format to another.
+	 * 
+	 * @param string $convertee string to be converted
+	 */
+	public function convert(string $convertee): string;
+}
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/assert/src/Assert.php
+
+
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+/**
+ * Description of Assert
+ *
+ * @author hm
+ */
+class Assert {
+	static function isEnum($value, array $allowed) {
+		if(!in_array($value, $allowed)) {
+			throw new InvalidArgumentException("value ".$value." outside of set of allowed values (".implode(", ", $allowed).")");
+		}
+	}
+	
+	static function isClassConstant($class, $value, string $parameterName=NULL) {
+		$reflection = new ReflectionClass($class);
+		$constants = $reflection->getConstants();
+		if(!in_array($value, $constants)) {
+			if($parameterName==NULL) {
+				$message = "value ".$value." not a class constant, allowed values are ";
+			} else {
+				$message = "\$".$parameterName." not a class constant, allowed values are ";
+			}
+			$allowed = array();
+			foreach($constants as $key => $value) {
+				$allowed[] = $class."::".$key;
+			}
+			$message .= implode(", ", $allowed);
+			throw new InvalidArgumentException($message);
+		}
+	}
+	
+	static function fileExists($value) {
+		if(!file_exists($value)) {
+			throw new InvalidArgumentException("filename ".$value." does not exist");
+		}
+	}
+	
+	static function isFile($value) {
+		if(!is_file($value)) {
+			throw new InvalidArgumentException($value." is not a file");
+		}
+	}
+	
+	static function isDir($value) {
+		if(!is_dir($value)) {
+			throw new InvalidArgumentException($value." is not a directory");
+		}
+	}
+
+}
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/convert/src/ConvertTrailingSlash.php
+
+
+/**
+ * @copyright (c) 2021, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * Convert Trailing Slash
+ * 
+ * Paths like /mnt/usb-drive//final/ do not look nice, and paths like
+ * /mnt/usb-drivefinal are not nice either ;-). ConvertTrailingSlash removes
+ * or adds trailing slashes from/to paths.
+ */
+class ConvertTrailingSlash implements Convert {
+	const REMOVE = 1;
+	const ADD = 2;
+	private $format;
+	/**
+	 * 
+	 * @param int $format add or remove slashes.
+	 */
+	function __construct(int $format = self::REMOVE) {
+		Assert::isEnum($format, array(self::REMOVE, self::ADD));
+		$this->format = $format;
+	}
+	
+	/**
+	 * convertRemove
+	 * 
+	 * Removes trailing slashes.
+	 * @param string $convertee
+	 * @return array
+	 */
+	private function convertRemove(string $convertee) {
+		$matches = array();
+		preg_match("/^(.*)\/*$/U", $convertee, $matches);
+	return $matches[1];
+	}
+
+	/**
+	 * Convert
+	 * 
+	 * Convert function as such. If ADD is used, first slashes will be removed
+	 * and one will be added.
+	 * @param string $convertee
+	 * @return string
+	 */
+	function convert(string $convertee): string {
+		if($this->format===self::REMOVE) {
+			return $this->convertRemove($convertee);
+		}
+		if($this->format===self::ADD) {
+			return $this->convertRemove($convertee)."/";
+		}
+	}
 }
 #Imported from ./include/local/ArgvMain.php
 
@@ -202,20 +406,20 @@ class ArgString implements ArgModel {
  * @author hm
  */
 class ArgvMain implements ArgvModel{
-	private $arg = array();
 	private $positional = array();
 	private $positionalNames = array();
 	public function __construct() {
-		$this->arg["output"] = new ArgString();
-		$this->positional[] = new ArgString();
-		$this->positionalNames[] = "source";
+		$this->positional[0] = new ArgGeneric();
+		$this->positional[0]->setMandatory();
+		$this->positional[0]->setConvert(new ConvertTrailingSlash());
+		$this->positionalNames[] = "build configuration";
 	}
 	public function getBoolean(): array {
-		return array("source", "require", "check", "force");
+		return array("check");
 	}
 
 	public function getArgNames(): array {
-		return array_keys($this->arg);
+		return array();
 	}
 
 	public function getNamedArg(string $name): \ArgModel {
@@ -235,65 +439,69 @@ class ArgvMain implements ArgvModel{
 	}
 
 }
-#Imported from ./include/lib/LongestString.php
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/longeststring/src/LongestString.php
 
 /**
- * @copyright (c) 2019, Claus-Christoph Küthe
- * @author Claus-Christoph Küthe <floss@vm01.telton.de>
- * @license LGPL
+ * @copyright (c) 2021, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <plibv4@vm01.telton.de>
+ * @license LGPLv2.1
  */
 
 /**
- * Designed to get the length of the longest string of a set of strings.
+ * LongestString
+ * 
+ * The purpose of LongestString is to be given string after string and keeping
+ * track of the max length. Practical for output with monospaced fonts.
  */
 class LongestString {
-	private $longest = 0;
-	private $charset;
+	private $length = 0;
+	private $encoding = "UTF-8";
 	/**
 	 * 
-	 * @param string $charset Character Set as expected by mb_strlen.
+	 * @param type $encoding Valid encoding as used by mbstring
 	 */
-	function __construct(string $charset = "UTF-8") {
-		$this->charset = $charset;
+	function __construct($encoding = "UTF-8") {
+		$this->encoding = $encoding;
 	}
-	
 	/**
+	 * Add a string
 	 * 
-	 * @param string $string
+	 * Adds a string to the comparison. If it is longer than preceding strings,
+	 * the length will be set to the length of the string.
+	 * Note that float/int can be used as well.
+	 * @param type $string
 	 */
-	function addString(string $string) {
-		$len = mb_strlen($string, $this->charset);
-		if($len>$this->longest) {
-			$this->longest = $len;
+	function addString($string) {
+		$len = mb_strlen($string, $this->encoding);
+		if($len>$this->length) {
+			$this->length = $len;
 		}
 	}
 	
 	/**
+	 * Add an array of strings
 	 * 
+	 * Keeps you from writing foreach if you already have an array of strings of
+	 * which you want to have the longest one.
 	 * @param array $array
 	 */
 	function addArray(array $array) {
-		foreach($array as $key => $value) {
+		foreach($array as $value) {
 			$this->addString($value);
 		}
 	}
 	
 	/**
+	 * Return highest lenght
 	 * 
+	 * Returns the highest length, which defaults to 0, if no string was added.
 	 * @return int
 	 */
-	function getLongest(): int {
-		return $this->longest;
-	}
-	
-	/**
-	 * set stored length to zero
-	 */
-	function reset() {
-		$this->longest = 0;
+	function getLength():int {
+		return $this->length;
 	}
 }
-#Imported from ./include/lib/Argv/ArgvReference.php
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/argv/src/ArgvReference.php
 
 /**
  * @copyright (c) 2019, Claus-Christoph Küthe
@@ -304,7 +512,6 @@ class LongestString {
 /**
  * ArgvReference prints out a simple reference of defined arguments.
  */
-
 class ArgvReference {
 	private $argvModel;
 	function __construct(ArgvModel $model) {
@@ -357,7 +564,7 @@ class ArgvReference {
 		$return .= "Named Arguments:".PHP_EOL;
 		foreach($names as $name) {
 			$arg = $this->argvModel->getNamedArg($name);
-			$return .= "\t--".str_pad($name, $longest->getLongest(), " ");
+			$return .= "\t--".str_pad($name, $longest->getLength(), " ");
 			if($arg->isMandatory()) {
 				$return .= " (mandatory)".PHP_EOL;
 			} else {
@@ -367,7 +574,7 @@ class ArgvReference {
 	return $return;
 	}
 }
-#Imported from ./include/lib/Argv/ArgvException.php
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/argv/src/ArgvException.php
 
 /**
  * @copyright (c) 2019, Claus-Christoph Küthe
@@ -376,7 +583,7 @@ class ArgvReference {
  */
 class ArgvException extends RuntimeException {
 }
-#Imported from ./include/lib/Argv/Argv.php
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/argv/src/Argv.php
 
 /**
  * @copyright (c) 2019, Claus-Christoph Küthe
@@ -404,10 +611,59 @@ class Argv {
 		$this->getAvailable();
 		$this->sanityCheck();
 		$this->validate();
+		$this->convert();
+	}
+	/**
+	 * Parses $argv and returns array
+	 * 
+	 * Argv::extractArgv extracts array from $argv, keeping the order of
+	 * arguments. Positional arguments will have a numeric index, boolean and
+	 * named arguments a associative index.
+	 * Note that this does no sanity checks whatsoever beside malformed
+	 * arguments.
+	 * @param array $argv
+	 * @return array
+	 * @throws ArgvException
+	 */
+	static function extractArgv(array $argv): array {
+		$raw = array();
+		unset($argv[0]);
+		foreach($argv as $key => $value) {
+			if($value==="--") {
+				throw new ArgvException("Named argument with no name found (--)");
+			}
+			if(substr($value, 0, 2)=="--") {
+				$exp = explode("=", $value, 2);
+				if(count($exp)==2) {
+					$raw[substr($exp[0], 2)] = $exp[1];
+					continue;
+				}
+				$raw[substr($exp[0], 2)] = true;
+			continue;
+			}
+			$raw[] = $value;
+		}
+	return $raw;
+	}
+	
+	/**
+	 * Check for --help
+	 * 
+	 * This function checks whether boolean argument --help is present within
+	 * a call. This allows you to exit your script early with an online help.
+	 * @param array $argv
+	 * @return bool
+	 */
+	static function hasHelp(array $argv): bool {
+		$extract = self::extractArgv($argv);
+	return isset($extract["help"]) && $extract["help"]===TRUE;
 	}
 	
 	private function getAvailable() {
 		foreach($this->argv as $key => $value) {
+			if($value==="--") {
+				throw new ArgvException("Parameter with no name found (--)");
+			}
 			if(substr($value, 0, 2)=="--") {
 				$this->getAvailableNamedOrBoolean($value);
 				continue;
@@ -425,7 +681,24 @@ class Argv {
 			if(!$this->model->getNamedArg($name)->hasDefault()) {
 				continue;
 			}
-			$this->availableNamed[$name] = $this->model->getNamedArg($name)->getDefault();
+			/**
+			 * Usually, default values will be set by programmers, not users.
+			 * If validation is set, it will be run against the default value
+			 * here; the default value is supposed to be in the same format that
+			 * the user should use.
+			 * At a later point, Argv would throw an ArgvException, but this
+			 * error is a coding error, therefore it will be checked & handled
+			 * here.
+			 */
+			$default = $this->model->getNamedArg($name)->getDefault();
+			if($this->model->getNamedArg($name)->hasValidate()) {
+				try {
+					$this->model->getNamedArg($name)->getValidate()->validate($default);
+				} catch (ValidateException $ex) {
+					throw new InvalidArgumentException("default value for '".$name."' doesn't validate");
+				}
+			}
+			$this->availableNamed[$name] = $default;
 		}
 	}
 	
@@ -516,8 +789,8 @@ class Argv {
 			}
 			$this->availablePositional[$pos] = $arg->getConvert()->convert($this->availablePositional[$pos]);
 		}
-
 		foreach($this->availableNamed as $name => $value) {
+			
 			$arg = $this->model->getNamedArg($name);
 			if(!$arg->hasConvert()) {
 				continue;
@@ -547,7 +820,7 @@ class Argv {
 	 */
 	function getValue($key): string {
 		if(!$this->hasValue($key)) {
-			throw new Exception("argument value ".$key." doesn't exist");
+			throw new OutOfRangeException("argument value ".$key." doesn't exist");
 		}
 	return $this->availableNamed[$key];
 	}
@@ -558,7 +831,7 @@ class Argv {
 	
 	function getPositional(int $pos) {
 		if(!$this->hasPositional($pos)) {
-			throw new Exception("positional argument ".$pos." doesn't exist");
+			throw new OutOfRangeException("positional argument ".$pos." doesn't exist");
 		}
 	return $this->availablePositional[$pos];
 	}
@@ -573,150 +846,667 @@ class Argv {
 	 */
 	function getBoolean($key):bool {
 		if(!in_array($key, $this->model->getBoolean())) {
-			throw new Exception("boolean argument ".$key." is not defined");
+			throw new OutOfRangeException("boolean argument ".$key." is not defined");
 		}
 		return in_array($key, $this->availableBoolean);
 	}
 }
-#Imported from ./include/local/ComponentsAvailable.php
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/import/src/ImportException.php
+
+/**
+ * @copyright (c) 2021, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * Description of ImportException
+ *
+ * @author hm
+ */
+class ImportException extends RuntimeException {
+	
+}
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/import/src/Import.php
+
+/**
+ * @copyright (c) 2021, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * Import
+ * 
+ * Uses an import model to import values from an array, considering default
+ * values, mandatory values, validators and conversions.
+ */
+class Import {
+	private $array = array();
+	private $imported = array();
+	private $model;
+	private $path = array();
+	/**
+	 * Construct with the array you want to import from and an import model.
+	 * @param array $array
+	 * @param ImportModel $model
+	 */
+	function __construct(array $array, ImportModel $model) {
+		$this->array = $array;
+		$this->model = $model;
+	}
+	
+	private function setPath(array $path) {
+		$this->path = $path;
+	}
+	
+	private function getPath():array {
+	return $this->path;
+	}
+	
+	private function getErrorPath($name):string {
+		$path = $this->path;
+		$path[] = $name;
+		$niced = array();
+		foreach ($path as $value) {
+			if($value===NULL) {
+				$niced[] = "[]";
+				continue;
+			}
+			$niced[] = "[\"".$value."\"]";
+		}
+	return implode("", $niced);
+	}
+	
+	
+	private function checkUnexpected() {
+		foreach($this->array as $key => $value) {
+			if(!isset($this->imported[$key]) and is_scalar($value)) {
+				throw new ImportException($this->getErrorPath($key)." with value '".$value."' is not expected in array");
+			}
+			if(!isset($this->imported[$key]) and is_array($value)) {
+				throw new ImportException($this->getErrorPath($key)." is not expected in array");
+			}
+
+		}
+	}
+	
+	private function noValue($key) {
+		if(!isset($this->array[$key])) {
+			return true;
+		}
+		if($this->array[$key]==="") {
+			return true;
+		}
+		if($this->array[$key]===array()) {
+			return true;
+		}
+	return false;
+	}
+	
+	private function importScalars() {
+		foreach($this->model->getScalarNames() as $value) {
+			if($this->noValue($value) and $this->model->getScalarModel($value)->hasDefault()) {
+				$this->imported[$value] = $this->model->getScalarModel($value)->getDefault();
+				continue;
+			}
+			if($this->noValue($value) and $this->model->getScalarModel($value)->isMandatory()) {
+				throw new ImportException($this->getErrorPath($value)." is missing from array");
+			}
+			if($this->noValue($value)) {
+				continue;
+			}
+			$this->imported[$value] = $this->array[$value];
+		}
+	}
+	
+	private function validateScalars() {
+		foreach($this->model->getScalarNames() as $key => $value) {
+			if(!$this->model->getScalarModel($value)->hasValidate()) {
+				continue;
+			}
+			// No need to call Validate on an optional, nonexisting value
+			if(!isset($this->imported[$value])) {
+				continue;
+			}
+			try {
+				$this->model->getScalarModel($value)->getValidate()->validate($this->imported[$value]);
+			} catch(ValidateException $e) {
+				throw new ImportException("Validation failed for ".$this->getErrorPath($value).": ".$e->getMessage());
+			}
+		}
+	}
+
+	private function convertScalars() {
+		foreach($this->model->getScalarNames() as $key => $value) {
+			if(!$this->model->getScalarModel($value)->hasConvert()) {
+				continue;
+			}
+			// No need to call Convert on an optional, nonexisting value
+			if(!isset($this->imported[$value])) {
+				continue;
+			}
+			$this->imported[$value] = $this->model->getScalarModel($value)->getConvert()->convert($this->imported[$value]);
+		}
+	}
+	
+	private function importDictionaries() {
+		foreach($this->model->getImportNames() as $name) {
+			$mypath = $this->getPath();
+			$mypath[] = $name;
+			if($this->noValue($name)) {
+				$import = new Import(array(), $this->model->getImportModel($name));
+
+				
+				$import->setPath($mypath);
+				$array = $import->getArray();
+				// If $import returned an empty array - ie all values are
+				// optional and none was defaulted - skip value altogether.
+				if(empty($array)) {
+					continue;
+				}
+				$this->imported[$name] = $array;
+				continue;
+			}
+			$import = new Import($this->array[$name], $this->model->getImportModel($name));
+			$import->setPath($mypath);
+			$this->imported[$name] = $import->getArray();
+		}
+	}
+	
+	private function importLists() {
+		foreach($this->model->getScalarListNames() as $name) {
+			$scalarModel = $this->model->getScalarListModel($name);
+			if($this->noValue($name) and $scalarModel->hasDefault()) {
+				$this->imported[$name][] = $scalarModel->getDefault();
+				continue;
+			}
+			if($this->noValue($name) and !$scalarModel->isMandatory()) {
+				continue;
+			}
+			if($this->noValue($name) and $scalarModel->isMandatory()) {
+				throw new ImportException($this->getErrorPath($name)."[] is mandatory, needs to contain at least one value");
+			}
+			if(!is_array($this->array[$name])) {
+				throw new ImportException($this->getErrorPath($name)." is not an array");
+			}
+			/**
+			 * There's a weak point here: $this->array[$name] could contain an
+			 * associative array.
+			 * @todo: Think about how to deal with this.
+			 */
+			$this->imported[$name] = $this->array[$name];
+		}
+		
+	}
+
+	private function importDictionaryList() {
+		foreach($this->model->getImportListNames() as $name) {
+			$mypath = $this->getPath();
+			$mypath[] = $name;
+			if($this->noValue($name)) {
+				$mypath[] = NULL;
+				$import = new Import(array(), $this->model->getImportListModel($name));
+				$import->setPath($mypath);
+				$array = $import->getArray();
+				// If $import returned an empty array - ie all values are
+				// optional and none was defaulted - skip value altogether.
+				if(empty($array)) {
+					continue;
+				}
+				$this->imported[$name][] = $array;
+				continue;
+			}
+
+			
+			foreach($this->array[$name] as $id => $sub) {
+				$mypath[] = $id;
+				$importModel = $this->model->getImportListModel($name);
+				$import = new Import($sub, $importModel);
+				$this->imported[$name][] = $import->getArray();
+			}
+		}
+	}
+
+	/**
+	 * Get Array
+	 * 
+	 * Return array according to rules laid down in import model. It also checks
+	 * for missing or unexpected values (values that do not exist in import
+	 * model). Throws import exception if anything goes awry; will throw through
+	 * Exceptions other than ValidateException, however.
+	 * @return type
+	 * @throws ImportException
+	 */
+	function getArray() {
+		if($this->imported==array()) {
+			$this->importScalars();
+			$this->importLists();
+			$this->validateScalars();
+			$this->convertScalars();
+			
+			$this->importDictionaries();
+			$this->importDictionaryList();
+					
+			$this->checkUnexpected();
+		}
+	return $this->imported;
+	}
+}
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/import/src/ImportModel.php
+
+/**
+ * @copyright (c) 2021, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * ImportModel
+ * 
+ * An ImportModel is a representation of an array, it basically tells Import
+ * how it should import/validate/convert values from a given array.
+ */
+interface ImportModel {
+	/**
+	 * get scalar names
+	 * 
+	 * Return a list of names that should be imported as scalar values, whereas
+	 * the name has to correspondent with an array key that contains a scalar
+	 * value.
+	 */
+	function getScalarNames(): array;
+	/**
+	 * Get scalar model
+	 * 
+	 * Return the scalar model for a specific array key.
+	 * @param type $name
+	 */
+	function getScalarModel($name): ScalarModel;
+	
+	/**
+	 * Get scalar list names
+	 * 
+	 * Return a list of names that should be imported as an array containing
+	 * scalar values.
+	 */
+	function getScalarListNames(): array;
+	
+	/**
+	 * Get Scalar List model
+	 * 
+	 * Return a scalar model to be applied to the list below $name.
+	 * @param type $name
+	 */
+	function getScalarListModel($name): ScalarModel;
+	
+	/**
+	 * Get Import Names
+	 * 
+	 * Return a list of names that should be imported as an associative array,
+	 * basically an import model within an import model, to account for nested
+	 * associative arrays such as $array["birth"]["location"] = "New York",
+	 * $array["birth"]["time"] = "18:15:00".
+	 */
+	function getImportNames(): array;
+	/**
+	 * Get Import Model
+	 * 
+	 * Return an import model to be applied to the associative array below
+	 * $name.
+	 * @param type $name
+	 */
+	function getImportModel($name): ImportModel;
+	
+	/**
+	 * Get Import List Names
+	 * 
+	 * Get a list of names that should be imported as a numeric array containing
+	 * associative arrays.
+	 */
+	function getImportListNames(): array;
+	/**
+	 * Get Import List Model
+	 * 
+	 * Returns an import model which will be applied to each entry of a list
+	 * below an array key $name.
+	 * @param type $name
+	 */
+	function getImportListModel($name): ImportModel;
+}
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/import/src/ScalarModel.php
+
+/**
+ * @copyright (c) 2021, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * Interface for a scalar import model
+ * 
+ * Scalar import models are supposed to import scalar values as well as to
+ * validate and to convert them.
+ */
+Interface ScalarModel {
+	/**
+	 * Get default value, which will be used if value is not in array or empty.
+	 */
+	function getDefault(): string;
+	
+	/**
+	 * True if model has a default, false if not.
+	 */
+	function hasDefault(): bool;
+	
+	/**
+	 * True if value is mandatory, false if not.
+	 */
+	function isMandatory(): bool;
+	
+	/**
+	 * True if model has a validator attached
+	 */
+	function hasValidate(): bool;
+	
+	/**
+	 * Get validator if available. Won't be called if hasValidate equals FALSE.
+	 */
+	function getValidate(): Validate;
+	
+	/**
+	 * True if model has converter attached
+	 */
+	function hasConvert(): bool;
+	
+	/**
+	 * Get converter. Won't be called if hasConvert equals FALSE
+	 */
+	function getConvert(): Convert;
+}
+#Imported from /home/hm/NetBeansProjects/phuild/vendor/plibv4/import/src/ScalarGeneric.php
+
+/**
+ * @copyright (c) 2021, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license LGPL
+ */
+
+/**
+ * ScalarGeneric
+ * 
+ * Generic implementation for scalar model.
+ */
+class ScalarGeneric implements ScalarModel {
+	private $default;
+	private $mandatory = FALSE;
+	private $validate;
+	private $convert;
+	public function setDefault(string $default) {
+		$this->default = $default;
+	}
+	public function getDefault(): string {
+		return $this->default;
+	}
+
+	public function hasDefault(): bool {
+		return $this->default!==NULL;
+	}
+
+	public function setMandatory() {
+		$this->mandatory = true;
+	}
+
+	public function isMandatory(): bool {
+		return $this->mandatory;
+	}
+	
+	public function setValidate(Validate $validate) {
+		$this->validate = $validate;
+	}
+
+	public function hasValidate(): bool {
+		return $this->validate!=NULL;
+	}
+
+	public function getValidate(): Validate {
+		return $this->validate;
+	}
+
+	public function setConvert(Convert $convert) {
+		$this->convert = $convert;
+	}
+	
+	public function hasConvert(): bool {
+		return $this->convert!=NULL;
+	}
+	
+	
+	public function getConvert(): Convert {
+		return $this->convert;
+	}
+
+}
+#Imported from ./include/ImportJob.php
 
 /**
  * @copyright (c) 2019, Claus-Christoph Küthe
  * @author Claus-Christoph Küthe <floss@vm01.telton.de>
  * @license GPLv3
  */
-class ComponentsAvailable {
-	private $classes;
-	/**
-	 * 
-	 * @param string $directory
-	 */
-	function __construct(string $directory) {
-		$this->addDirectory($directory);
-	}
-	
-	/**
-	 * Add Directory
-	 * 
-	 * Add another directory to an instance of ComponentsAvailable
-	 * @param string $directory Directory containing PHP files
-	 */
-	function addDirectory(string $directory) {
-		#Assert::fileExists($directory);
-		#Assert::isDir($directory);
-		if(!file_exists($directory)) {
-			throw new InvalidArgumentException("directory ".$directory." does not exist.");
-		}
 
-		$this->recurse(realpath($directory));
-	}
-
-	/**
-	 * Add File
-	 * 
-	 * Add a single file containing PHP classes.
-	 * @param type $file
-	 */
-	function addFile($file) {
-		#Assert::fileExists($file);
-		#Assert::isFile($file);
-		$this->parse($file);
-	}
-	
-	private function recurse($folder) {
-		foreach(glob($folder."/*") as $value) {
-			$info = pathinfo($value);
-			if(is_dir($value)) {
-				$this->recurse($value);
-				continue;
-			}
-			if(!isset($info["extension"])) {
-				continue;
-			}
-			if($info["extension"]!="php") {
-				continue;
-			}
-			$this->parse($value);
-		}
-	}
-	
-	/**
-	 * Extract Components
-	 * 
-	 * Isolated method to extract components out of a PHP file. Isolated from
-	 * parse() for better testing.
-	 * @param type $file
-	 * @return array
-	 */
-	static function extractComponents($file): array {
-		$components = array();
-		$string = file_get_contents($file);
-		$tokens = token_get_all($string);
+/**
+ * ImportJob
+ * 
+ * ImportModel for Import to import array from build configuration.
+ */
+class ImportJob implements ImportModel {
+	private $scalar;
+	private $scalarList;
+	function __construct() {
+		$this->scalar["name"] = new ScalarGeneric();
+		$this->scalar["name"]->setMandatory();
 		
-		$interesting = array(T_CLASS, T_INTERFACE);
-		foreach($tokens as $key => $value) {
-			if(!is_array($value)) {
-				continue;
-			}
-			if(!in_array($value[0], $interesting)) {
-				continue;
-			}
-			if(!isset($tokens[$key+1]) || !isset($tokens[$key+2])) {
-				continue;
-			}
-			if($tokens[$key+1][0]!=T_WHITESPACE) {
-				continue;
-			}
-			$components[] = $tokens[$key+2][1];
-		}
-	return $components;
+		$this->scalar["source"] = new ScalarGeneric();
+		$this->scalar["source"]->setMandatory();
+		
+		$this->scalar["target"] = new ScalarGeneric();
+		$this->scalar["target"]->setMandatory();
+		
+		$this->scalarList["includes"] = new ScalarGeneric();
+		$this->scalarList["includes"]->setMandatory();
 	}
 	
-	private function parse($file) {
-		$classes = self::extractComponents($file);
-		foreach ($classes as $value) {
-			$this->classes[$value] = $file;
-		}
+	public function getImportListModel($name): \ImportModel {
+		
+	}
+
+	public function getImportListNames(): array {
+		return array();
+	}
+
+	public function getImportModel($name): \ImportModel {
+		
+	}
+
+	public function getImportNames(): array {
+		return array();
+	}
+
+	public function getScalarListModel($name): \ScalarModel {
+		return $this->scalarList[$name];
+	}
+
+	public function getScalarListNames(): array {
+		return array_keys($this->scalarList);
+	}
+
+	public function getScalarModel($name): \ScalarModel {
+		return $this->scalar[$name];
+	}
+
+	public function getScalarNames(): array {
+		return array_keys($this->scalar);
+	}
+
+}
+#Imported from ./include/BuildJob.php
+
+/**
+ * @copyright (c) 2019, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license GPLv3
+ */
+
+/**
+ * BuildJob
+ * 
+ * Class representing a build job.
+ */
+class BuildJob {
+	private $name;
+	private $source;
+	private $target;
+	private $includes = array();
+	static function fromArray(array $array): BuildJob {
+		$import = new Import($array, new ImportJob());
+		$array = $import->getArray();
+		$buildjob = new BuildJob();
+		$buildjob->name = $array["name"];
+		$buildjob->source = $array["source"];
+		$buildjob->target = $array["target"];
+		$buildjob->includes = $array["includes"];
+	return $buildjob;
 	}
 	
 	/**
-	 * Has Component
+	 * getName
 	 * 
-	 * Checks if an instance of ComponentsAvailable knows the whereabouts of a
-	 * specific component.
-	 * @param string $component
-	 * @return bool
+	 * Gets name of build job.
+	 * @return string
 	 */
-	public function hasComponent(string $component):bool {
-		return isset($this->classes[$component]);
+	function getName(): string {
+		return $this->name;
 	}
 	
 	/**
-	 * Get Component
+	 * getSource
 	 * 
-	 * Returns the path of the file that contains a certain Component. Throws an
-	 * Exception if a Component cannot be resolved to a file.
-	 * @param string $component
-	 * @return type
-	 * @throws Exception
+	 * Get source file to work upon.
+	 * @return string
 	 */
-	public function getComponent(string $component) {
-		if(!$this->hasComponent($component)) {
-			throw new Exception("component ".$component." not known.");
-		}
-		return $this->classes[$component];
+	function getSource(): string {
+		return $this->source;
 	}
-	
+
 	/**
-	 * Get Components
+	 * getTarget
 	 * 
-	 * Get the components gathered by ComponentsAvailable.
+	 * Get target file for consolidated file.
+	 * @return string
+	 */
+	function getTarget(): string {
+		return $this->target;
+	}
+
+	/**
+	 * getIncludes
+	 * 
+	 * Get include directories to look in for dependencies.
 	 * @return array
 	 */
-	function getComponents(): array {
-		sort($this->classes);
-	return $this->classes;
+	function getIncludes(): array {
+		return $this->includes;
 	}
+}
+#Imported from ./include/BuildJobs.php
+
+/**
+ * @copyright (c) 2021, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license GPLv3
+ */
+
+/**
+ * BuildJobs
+ * 
+ * Class to represent a collection of build jobs.
+ */
+
+class BuildJobs {
+	private $directory;
+	private $buildJobs = array();
+	/**
+	 * Constructor
+	 * 
+	 * Constructor is private because factory methods have to be used.
+	 */
+	private function __construct() {
+		;
+	}
+	
+	/**
+	 * fromDirectory
+	 * 
+	 * Create instance of BuildJobs from directory (assumes that phuild.yml
+	 * exist in directory).
+	 * @param type $directory
+	 * @return \BuildJobs
+	 */
+	static function fromDirectory($directory): BuildJobs {
+		Assert::fileExists($directory);
+		Assert::isDir($directory);
+		return BuildJobs::fromFile($directory."/phuild.yml");
+	}
+	
+	/**
+	 * fromFile
+	 * 
+	 * Create instance of BuildJobs from file.
+	 * @param string $file
+	 * @return \BuildJobs
+	 */
+	static function fromFile(string $file): BuildJobs {
+		Assert::fileExists($file);
+		Assert::isFile($file);
+
+		$buildjobs = new BuildJobs();
+		$buildjobs->directory = dirname($file);
+		
+		$parsed = yaml_parse_file($file);
+		foreach($parsed as $key => $value) {
+			$buildjobs->buildJobs[] = BuildJob::fromArray($value);
+		}
+		
+	return $buildjobs;
+	}
+	
+	/**
+	 * getCount
+	 * 
+	 * Returns the number of build jobs contained within.
+	 * @return int
+	 */
+	function getCount(): int {
+		return count($this->buildJobs);
+	}
+	
+	/**
+	 * getBuildJob
+	 * 
+	 * Retrieves an instance of BuildJob and throws OutOfBoundsException if
+	 * illegal item is requested.
+	 * @param type $item
+	 * @return \BuildJob
+	 * @throws OutOfBoundsException
+	 */
+	function getBuildJob($item): BuildJob {
+		if(!isset($this->buildJobs[$item])) {
+			throw new OutOfBoundsException("Build job ".$item." does not exist.");
+		}
+		return $this->buildJobs[$item];
+	}
+	
 }
 #Imported from ./include/local/ComponentsNeeded.php
 
@@ -970,6 +1760,146 @@ class ComponentsNeeded {
 		$this->printCheckResult($missing, "Missing Components:");
 	}
 }
+#Imported from ./include/local/ComponentsAvailable.php
+
+/**
+ * @copyright (c) 2019, Claus-Christoph Küthe
+ * @author Claus-Christoph Küthe <floss@vm01.telton.de>
+ * @license GPLv3
+ */
+class ComponentsAvailable {
+	private $classes;
+	/**
+	 * 
+	 * @param string $directory
+	 */
+	function __construct(string $directory) {
+		$this->addDirectory($directory);
+	}
+	
+	/**
+	 * Add Directory
+	 * 
+	 * Add another directory to an instance of ComponentsAvailable
+	 * @param string $directory Directory containing PHP files
+	 */
+	function addDirectory(string $directory) {
+		#Assert::fileExists($directory);
+		#Assert::isDir($directory);
+		if(!file_exists($directory)) {
+			throw new InvalidArgumentException("directory ".$directory." does not exist.");
+		}
+
+		$this->recurse(realpath($directory));
+	}
+
+	/**
+	 * Add File
+	 * 
+	 * Add a single file containing PHP classes.
+	 * @param type $file
+	 */
+	function addFile($file) {
+		#Assert::fileExists($file);
+		#Assert::isFile($file);
+		$this->parse($file);
+	}
+	
+	private function recurse($folder) {
+		foreach(glob($folder."/*") as $value) {
+			$info = pathinfo($value);
+			if(is_dir($value)) {
+				$this->recurse($value);
+				continue;
+			}
+			if(!isset($info["extension"])) {
+				continue;
+			}
+			if($info["extension"]!="php") {
+				continue;
+			}
+			$this->parse($value);
+		}
+	}
+	
+	/**
+	 * Extract Components
+	 * 
+	 * Isolated method to extract components out of a PHP file. Isolated from
+	 * parse() for better testing.
+	 * @param type $file
+	 * @return array
+	 */
+	static function extractComponents($file): array {
+		$components = array();
+		$string = file_get_contents($file);
+		$tokens = token_get_all($string);
+		
+		$interesting = array(T_CLASS, T_INTERFACE);
+		foreach($tokens as $key => $value) {
+			if(!is_array($value)) {
+				continue;
+			}
+			if(!in_array($value[0], $interesting)) {
+				continue;
+			}
+			if(!isset($tokens[$key+1]) || !isset($tokens[$key+2])) {
+				continue;
+			}
+			if($tokens[$key+1][0]!=T_WHITESPACE) {
+				continue;
+			}
+			$components[] = $tokens[$key+2][1];
+		}
+	return $components;
+	}
+	
+	private function parse($file) {
+		$classes = self::extractComponents($file);
+		foreach ($classes as $value) {
+			$this->classes[$value] = $file;
+		}
+	}
+	
+	/**
+	 * Has Component
+	 * 
+	 * Checks if an instance of ComponentsAvailable knows the whereabouts of a
+	 * specific component.
+	 * @param string $component
+	 * @return bool
+	 */
+	public function hasComponent(string $component):bool {
+		return isset($this->classes[$component]);
+	}
+	
+	/**
+	 * Get Component
+	 * 
+	 * Returns the path of the file that contains a certain Component. Throws an
+	 * Exception if a Component cannot be resolved to a file.
+	 * @param string $component
+	 * @return type
+	 * @throws Exception
+	 */
+	public function getComponent(string $component) {
+		if(!$this->hasComponent($component)) {
+			throw new Exception("component ".$component." not known.");
+		}
+		return $this->classes[$component];
+	}
+	
+	/**
+	 * Get Components
+	 * 
+	 * Get the components gathered by ComponentsAvailable.
+	 * @return array
+	 */
+	function getComponents(): array {
+		sort($this->classes);
+	return $this->classes;
+	}
+}
 #Imported from ./include/local/Main.php
 
 /**
@@ -984,7 +1914,11 @@ class Main {
 	private $needed;
 	private $available;
 	private $argv;
+	private $jobs;
+	private $root;
+	private $ignore = array();
 	function __construct(array $argv, array $ignore) {
+		$this->ignore = $ignore;
 		$model = new ArgvMain();
 		if(!isset($argv[1])) {
 			$reference = new ArgvReference($model);
@@ -992,23 +1926,16 @@ class Main {
 			die();
 		}
 		$this->argv = new Argv($argv, $model);
-		$boolean = array("source", "require", "check");
-		$boolCount = 0;
-		foreach($boolean as $value) {
-			if($this->argv->getBoolean($value)) {
-				$boolCount++;
-			}
-			if($boolCount>1) {
-				throw new ArgvException("--source, --check and --require are mutually exclusive.");
-			}
+	
+		if(is_dir($this->argv->getPositional(0))) {
+			$this->root = $this->argv->getPositional(0);
+			$this->jobs = BuildJobs::fromDirectory($this->root);
 		}
-		if($boolCount==0) {
-			throw new ArgvException("Needs --source, --check or --require.");
+
+		if(is_file($this->argv->getPositional(0))) {
+			$this->root = dirname($this->argv->getPositional(0));
+			$this->jobs = BuildJobs::fromFile($this->argv->getPositional(0));
 		}
-		$this->file = $this->argv->getPositional(0);
-		$this->sourcePath = dirname($this->file);
-		$this->available = new ComponentsAvailable($this->sourcePath);
-		$this->needed = new ComponentsNeeded($this->file, $this->available, $ignore);
 	}
 	
 	private function saveFile() {
@@ -1031,10 +1958,30 @@ class Main {
 		file_put_contents($this->argv->getValue("output"), $replaced);
 	}
 	
-	function run() {
-		$this->saveFile();
+	private function runJob(BuildJob $job) {
+		foreach($job->getIncludes() as $key => $value) {
+			if($key == 0) {
+				$available = new ComponentsAvailable($this->root."/".$value);
+				continue;
+			}
+			$available->addDirectory($this->root."/".$value);
+		}
+		
+		$needed = new ComponentsNeeded($this->root."/".$job->getSource(), $available, $this->ignore);
 		if($this->argv->getBoolean("check")) {
-			$this->needed->check();
+			$needed->check();
+			return;
+		}
+
+		$replaced = $needed->replace(ComponentsNeeded::SOURCE);
+		echo "Saving ".$this->root."/".$job->getTarget()."...";
+		file_put_contents($this->root."/".$job->getTarget(), $replaced);
+		echo "Done!".PHP_EOL;
+	}
+	
+	function run() {
+		for($i=0;$i<$this->jobs->getCount();$i++) {
+			$this->runJob($this->jobs->getBuildJob($i));
 		}
 	}
 }
