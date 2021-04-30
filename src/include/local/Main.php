@@ -11,7 +11,11 @@ class Main {
 	private $needed;
 	private $available;
 	private $argv;
+	private $jobs;
+	private $root;
+	private $ignore = array();
 	function __construct(array $argv, array $ignore) {
+		$this->ignore = $ignore;
 		$model = new ArgvMain();
 		if(!isset($argv[1])) {
 			$reference = new ArgvReference($model);
@@ -19,23 +23,16 @@ class Main {
 			die();
 		}
 		$this->argv = new Argv($argv, $model);
-		$boolean = array("source", "require", "check");
-		$boolCount = 0;
-		foreach($boolean as $value) {
-			if($this->argv->getBoolean($value)) {
-				$boolCount++;
-			}
-			if($boolCount>1) {
-				throw new ArgvException("--source, --check and --require are mutually exclusive.");
-			}
+	
+		if(is_dir($this->argv->getPositional(0))) {
+			$this->root = $this->argv->getPositional(0);
+			$this->jobs = BuildJobs::fromDirectory($this->root);
 		}
-		if($boolCount==0) {
-			throw new ArgvException("Needs --source, --check or --require.");
+
+		if(is_file($this->argv->getPositional(0))) {
+			$this->root = dirname($this->argv->getPositional(0));
+			$this->jobs = BuildJobs::fromFile($this->argv->getPositional(0));
 		}
-		$this->file = $this->argv->getPositional(0);
-		$this->sourcePath = dirname($this->file);
-		$this->available = new ComponentsAvailable($this->sourcePath);
-		$this->needed = new ComponentsNeeded($this->file, $this->available, $ignore);
 	}
 	
 	private function saveFile() {
@@ -58,10 +55,30 @@ class Main {
 		file_put_contents($this->argv->getValue("output"), $replaced);
 	}
 	
-	function run() {
-		$this->saveFile();
+	private function runJob(BuildJob $job) {
+		foreach($job->getIncludes() as $key => $value) {
+			if($key == 0) {
+				$available = new ComponentsAvailable($this->root."/".$value);
+				continue;
+			}
+			$available->addDirectory($this->root."/".$value);
+		}
+		
+		$needed = new ComponentsNeeded($this->root."/".$job->getSource(), $available, $this->ignore);
 		if($this->argv->getBoolean("check")) {
-			$this->needed->check();
+			$needed->check();
+			return;
+		}
+
+		$replaced = $needed->replace(ComponentsNeeded::SOURCE);
+		echo "Saving ".$this->root."/".$job->getTarget()."...";
+		file_put_contents($this->root."/".$job->getTarget(), $replaced);
+		echo "Done!".PHP_EOL;
+	}
+	
+	function run() {
+		for($i=0;$i<$this->jobs->getCount();$i++) {
+			$this->runJob($this->jobs->getBuildJob($i));
 		}
 	}
 }

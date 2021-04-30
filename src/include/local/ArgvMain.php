@@ -12,20 +12,20 @@
  * @author hm
  */
 class ArgvMain implements ArgvModel{
-	private $arg = array();
 	private $positional = array();
 	private $positionalNames = array();
 	public function __construct() {
-		$this->arg["output"] = new ArgGeneric();
-		$this->positional[] = new ArgGeneric();
-		$this->positionalNames[] = "source";
+		$this->positional[0] = new ArgGeneric();
+		$this->positional[0]->setMandatory();
+		$this->positional[0]->setConvert(new ConvertTrailingSlash());
+		$this->positionalNames[] = "build configuration";
 	}
 	public function getBoolean(): array {
-		return array("source", "require", "check", "force");
+		return array("check");
 	}
 
 	public function getArgNames(): array {
-		return array_keys($this->arg);
+		return array();
 	}
 
 	public function getNamedArg(string $name): \ArgModel {
